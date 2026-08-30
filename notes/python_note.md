@@ -1,7 +1,9 @@
 # **Python** 学习笔记
 
 > 记录方法：边读官方教程边动手练，学到什么记什么，用自己的话写
-> 来源：Python 官方教程（docs.python.org/3/tutorial）
+> 来源：Python 官方教程
+> - 中文版：https://docs.python.org/zh-cn/3/tutorial/
+> - 英文版：https://docs.python.org/3/tutorial/
 
 ## 1. 课前甜点：Python 是什么
 
@@ -99,7 +101,7 @@ Be careful not to fall off!
 
 ## 3. Python 速览
 
-### 例子的格式约定（章首说明，读教程必备）
+例子的格式约定（章首说明，读教程必备）
 
 | 例子里 | 含义 |
 |---|---|
@@ -111,7 +113,7 @@ Be careful not to fall off!
 
 > 对笔记的意义：在 VS Code 里写 .py 文件没有提示符这回事，这条主要用来**读教程时别把输出行也抄进代码**。
 
-### 注释
+注释
 
 - `#` 到行尾 = **注释**：写给人看的，Python 完全忽略
 - 位置随便：行开头、代码后面、单独一行（前面有空格也行）
@@ -133,9 +135,9 @@ text = "# 引号里的 # 是普通字符"   # 这里开始的才是注释
 
 
 
-## 3.1. Python 用作计算器
+### 3.1. Python 用作计算器
 
-### 3.1.1. 数字
+#### 3.1.1. 数字
 
 - 整数（如，`2`、`4`、`20` ）的类型是 [`int`](https://docs.python.org/zh-cn/3.10/library/functions.html#int)，带小数（如，`5.0`、`1.6` ）的类型是 [`float`]
 
@@ -158,7 +160,7 @@ width = 20 #赋值    变量必须赋值 否则报错
 14.0
 ```
 
-### 3.1.2. 字符串
+#### 3.1.2. 字符串
 
 斜杠
 
@@ -214,7 +216,7 @@ width = 20 #赋值    变量必须赋值 否则报错
 
 
 
-### 3.1.3. 列表
+#### 3.1.3. 列表
 
 Python 支持多种 *复合* 数据类型，可将不同值组合在一起。最常用的 *列表* ，是用方括号标注，逗号分隔的一组值。*列表* 可以包含不同类型的元素，但一般情况下，各个元素的类型相同：
 
@@ -257,15 +259,13 @@ Python 支持多种 *复合* 数据类型，可将不同值组合在一起。最
 'b'
 ```
 
-## 3.2. 走向编程的第一步
+### 3.2. 走向编程的第一步
 
-# 4. 更多控制流工具
+## 4.更多控制流工具
 
 除了上一章介绍的 [`while`](https://docs.python.org/zh-cn/3.10/reference/compound_stmts.html#while) 语句，Python 还支持其他语言中常见的流程控制语句，只是稍有不同。
 
-
-
-## 4.1. `if` 语句
+### 4.1. `if` 语句
 
 ```
 x= int(input("please enter an integer:"))
@@ -280,13 +280,160 @@ else:
     print('More')
 ```
 
-## 4.2. `for` 语句
+### 4.2. `for` 语句
 
 ```python
-words = ['cat', 'window', 'defenestrate']
+
+```
+
+for迭代
+
+words=['林业','遥感','碳汇']
 
 for w in words:
 
-​    print(w)
+    print(w,len(w))
+
+  
+
+#删掉之后不会空着
+
+words=['林业','遥感','碳汇']
+
+for w in words:
+
+    if w!='林业':
+
+        words.remove(w)
+
+print(words)
+
+#['林业', '碳汇']
+
+  
+
+
+#复制快照
+
+words=['林业','遥感','碳汇']
+
+for w in words.copy():
+
+    if w!='林业':
+
+        words.remove(w)
+
+#['林业']
+
+  
+
+
+#反向，符合的抓进去
+
+words=['林业','遥感','碳汇']
+
+forest_words = []
+
+for w in words:
+
+    if w== '林业':
+
+        forest_words.append(w)
+
+print(forest_words)
+print(words)```
+
+
+### 4.3 range()函数
+
+内置函数 range()用于生成等差数列：
+
 ```
+for i in range(5):
+    print(i)
+
+0
+1
+2
+3
+4
+```
+
+
+
+生成的序列绝不会包括给定的终止值；
+
+```
+list(range(5, 10))
+[5, 6, 7, 8, 9]
+
+list(range(0, 10, 3))
+[0, 3, 6, 9]
+
+list(range(-10, -100, -30))
+[-10, -40, -70]
+
+
+```
+
+要按索引迭代序列，可以组合使用 [`range()`](https://docs.python.org/zh-cn/3/library/stdtypes.html#range "range") 和 [`len()`](https://docs.python.org/zh-cn/3/library/functions.html#len "len")：
+
+```
+a = ['Mary', 'had', 'a', 'little', 'lamb']
+for i in range(len(a)):
+    print(i, a[i])
+
+0 Mary
+1 had
+2 a
+3 little
+4 lamb
+
+
+```
+
+
+
+range()不等同于列表
+
+```python
+(range(10))
+print(list(range(10)))
+```
+
+### 4.4. `break` 和 `continue` 语句
+
+```python
+for n in range(2, 10):
+    for x in range(2, n):
+        if n % x == 0:
+            print(f"{n} equals {x} * {n//x}")
+            break
+
+4 equals 2 * 2
+6 equals 2 * 3
+8 equals 2 * 4
+9 equals 3 * 3
+```
+
+[`continue`](https://docs.python.org/zh-cn/3/reference/simple_stmts.html#continue) 语句将继续执行循环的下一次迭代
+
+```python
+for num in range(2, 10):
+    if num % 2 == 0:
+        print(f"Found an even number {num}")
+        continue
+    print(f"Found an odd number {num}")
+
+Found an even number 2
+Found an odd number 3
+Found an even number 4
+Found an odd number 5
+Found an even number 6
+Found an odd number 7
+Found an even number 8
+Found an odd number 9
+```
+
+
 
