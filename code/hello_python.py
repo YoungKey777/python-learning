@@ -69,8 +69,85 @@
 # (range(10))
 # print(list(range(10))).
 
-for num in range(2, 10):
-    if num % 2 == 0:
-        print(f"Found an even number {num}")
-        continue
-    print(f"Found an odd number {num}")
+# for num in range(2, 10):
+#     if num % 2 == 0:
+#         print(f"Found an even number {num}")
+#         continue
+#     print(f"Found an odd number {num}")
+
+
+# for num in range(1, 6):
+#     print(f"—— 进入第 {num} 轮 ——")
+#     if num == 3:
+#         print("第 3 轮：走了 if 分支")
+#     else:
+#         print(f"第 {num} 轮：走了 else 分支")
+
+
+# for num in range(1, 6):
+#     print(f"—— 进入第 {num} 轮 ——")
+#     if num == 3:
+#         continue          # ← 注意这行
+#     print(f"第 {num} 轮：continue 后面的代码执行了")
+
+
+
+# def http_error(status):
+#     match status:
+#         case 400:
+#             return "Bad request"
+#         case 404:
+#             return "Not found"
+#         case 418:
+#             return "I'm a teapot"
+#         case _:
+#             return "Something's wrong with the internet"
+# print(http_error(111))   # ← 加这两行：调用函数 + 打印结果
+# print(http_error(500))
+
+
+# 4.7 match
+# point=[3,5]
+# match point:
+#     case (0, 0):
+#         print("Origin")
+#     case (0, y):
+#         print(f"Y={y}")
+#     case (x, 0):
+#         print(f"X={x}")
+#     case (x, y):
+#         print(f"X={x}, Y={y}")
+#     case _:
+#         raise ValueError("Not a point")
+
+# 4.8定义函数
+# def fib(n):
+#     """Print a Fibonacci series less than n."""
+#     a,b = 0,1
+#     while a<n:
+#         print(a,end='')
+#         a,b = b, a+b
+#         print()
+# fib(2000)
+        
+
+# def add(a, b):
+#     """计算 a 加 b，返回结果。"""
+#     return a + b
+
+# help(add)     # ← 终端会显示说明书
+
+
+def change_num(n):
+    n=100
+
+x=5
+change_num(x)
+print(x)
+
+# def change_list(lst):
+#     lst.append(99)
+
+# my_list =[1,2,3]
+# change_list(my_list)
+# print(my_list)
