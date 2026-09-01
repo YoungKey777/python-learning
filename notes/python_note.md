@@ -789,4 +789,198 @@ class ForestCarbonCalculator:      # 类：单词连写、首字母大写
 - 解包 `**字典` → 参数从配置文件读进来，`strategy(**config)` 一把拆开
 - lambda + sort key → 按因子/收益率/相关性排序股票（排序场景之王）
 
+## 5 数据结构
+
+### 5.1 列表详解（方法大全）
+
+**速查表**：
+
+| 方法 | 作用 | 坑点 |
+|---|---|---|
+| `append(x)` | 末尾加一项 | **整个**放进去（变嵌套） |
+| `extend(iterable)` | 末尾加一坨 | **拆开**逐个放 |
+| `insert(i, x)` | 位置 i 插入 | `insert(0,x)` 开头；`insert(len(a),x)` = append |
+| `remove(x)` | 删第一个 x | 无则 **ValueError** |
+| `pop(i=-1)` | 取走（删并返回）位置 i 的项 | 空列表/越界 **IndexError** |
+| `clear()` | 清空 | |
+| `index(x, start, stop)` | x 首次出现的索引 | 无则 ValueError；**返回索引相对整个列表，不是相对 start** |
+| `count(x)` | 出现次数 | |
+| `sort(*, key, reverse)` | **原地**排序 | 返回 None！`sorted()` 才返回新列表 |
+| `reverse()` | **原地**翻转顺序 | 是"反转"，不是逆序排序 |
+| `copy()` | 浅拷贝 = `a[:]` | 浅拷贝，深拷贝以后学 |
+
+**核心概念**：
+- **append vs extend**：`a.append([3,4])` → `[1, 2, [3,4]]`（嵌套）；`a.extend([3,4])` → `[1, 2, 3, 4]`（拆开）
+- **原地 vs 返回新**：sort/reverse/append/pop 等**修改原列表且返回 None**；`sorted()` 返回新列表。`a = a.sort()` 经典错误 → a 变成 None
+- **报错预埋**：ValueError（找不到）、IndexError（越界/空）——第 8 章异常正式学
+- `sort(key=...)` 的 key = 4.9.6 lambda 的实战用法：`sorted(股票, key=lambda s: s.收益率)`
+
+```python
+fruits = ['orange', 'apple', 'pear', 'banana', 'kiwi', 'apple', 'banana']
+fruits.count('apple')        # 2
+fruits.index('banana')       # 3
+fruits.index('banana', 4)    # 6（从4号位开始找，但索引对整个列表算）
+fruits.sort()                # 原地 → ['apple','apple','banana','banana','grape','kiwi','orange','pear']
+fruits.pop()                 # 'pear'（末尾取走）
+```
+
+**C++ 对照**：append ≈ push_back；pop ≈ pop_back（Python 的 pop 会返回元素）；insert(i,x) ≈ vector::insert；sort ≈ std::sort（都原地）
+
+**量化相关 💰**：`sort(key=...)` 按因子/收益率排序 = 因子排序；count/index/remove = 数据清洗三件套
+
+#### 5.1.1 堆栈（栈，LIFO 后进先出）
+
+- 一句话：**最后放进去的，最先拿出来**
+- Python 栈 = 列表 + 两个操作，**栈顶在列表末尾**
+  - 入栈 push：`append(x)`
+  - 出栈 pop：`pop()`（默认取末尾）
+- 纪律：永远从末尾操作，不在中间插、不从头部取
+- 看栈顶不取走：`stack[-1]`
+- 类比：一摞盘子 / 浏览器后退 / Ctrl+Z 撤销
+- C++ 对照：std::stack 的 push/pop/top——Python 不需要专门类型，列表天生就是栈
+- 以后学递归：函数调用本身是隐式栈（调用压栈、返回弹栈）
+
+```python
+stack = [3, 4, 5]
+stack.append(6)      # 入栈 → [3,4,5,6]
+stack.append(7)      # 入栈 → [3,4,5,6,7]
+stack.pop()          # 出栈 → 7（后进先出）
+stack.pop()          # 出栈 → 6
+stack                # [3, 4, 5]
+```
+
+#### 5.1.2 队列（FIFO 先进先出）
+
+- 一句话：**最先加入的，最先取出**（排队打饭）
+- 用 `deque` 实现，不用列表（列表出队 `pop(0)` 太慢：所有元素都得往前挪一位，O(n)）
+
+```python
+from collections import deque     # 第一次见 import：从 collections 模块拿 deque（第 6 章正式学）
+queue = deque(["Eric", "John", "Michael"])
+queue.append("Terry")             # 右边入队（队尾）
+queue.popleft()                   # 左边出队（队头）→ 'Eric'
+```
+
+- **deque = 双端队列**（double-ended queue），两端操作都 O(1)，C++ std::deque 同款
+- **栈/队列是"纪律"，list/deque 是"工具"**：deque 两端都能操作（pop() 取右端也能用）——当栈用 = 只碰右端；当队列用 = 右进左出；混着用就失去语义。写法告诉读者这是 FIFO 还是 LIFO
+- 栈 vs 队列对照：
+
+| | 栈 Stack | 队列 Queue |
+|---|---|---|
+| 顺序 | 后进先出 LIFO | 先进先出 FIFO |
+| 类比 | 摞盘子 | 排队打饭 |
+| 入口 | `append()`（末尾） | `append()`（末尾） |
+| 出口 | `pop()`（末尾） | `popleft()`（开头） |
+| 用啥 | 普通列表 | `deque` |
+
+- **量化相关 💰**：滑窗（滚动窗口）= 限长队列，新数据进旧数据出，pandas `rolling()` 的直觉
+
+#### 5.1.3 列表推导式
+
+**一句话：一行代码替代"建空列表 → for → append"三行，从一堆数据造出新的一堆数据。**
+
+**公式：`[表达式 for 变量 in 数据源 if 条件]`**（if 可选）
+
+| 部件 | 作用 | 类比 |
+|---|---|---|
+| 表达式 | 加工（对每个元素做什么） | 加工机器 |
+| for 变量 in 数据源 | 从哪拿原料 | 传送带 |
+| if 条件 | 要不要这个原料 | 质检员 |
+
+读法："从数据源拿每个 x，若满足条件，加工成表达式的样子放进新列表。"
+
+```python
+squares = [x**2 for x in range(10)]        # 纯加工
+[x for x in vec if x >= 0]                 # 纯过滤
+[abs(x) for x in vec]                      # 加工 = 函数调用
+[weapon.strip() for weapon in freshfruit]  # 加工 = 方法调用
+```
+
+- **嵌套 for**：从左到右 = 外层到内层展开（先 x 后 y）；实战用途是**展平嵌套列表**：
+  `[num for elem in vec for num in elem]` → `[1,2,3,4,5,6,7,8,9]`
+- **坑 1**：表达式是元组必须加括号 `[(x, x**2) for x in range(6)]`，否则 SyntaxError
+- **坑 2**：嵌套 for 顺序 = 循环从外到里
+- **优点：无副作用**——推导式里的 x 是临时的；for 循环版会留下存活变量 x 污染环境
+- vs lambda：`list(map(lambda x: x**2, range(10)))` 也能写，推导式更清晰
+- **量化相关 💰**：收益率序列一行算：
+  `returns = [prices[i]/prices[i-1] - 1 for i in range(1, len(prices))]`
+  筛股票池：`[s for s in 股票池 if s.市值 > 阈值]`
+
+**本节困惑记录（map / str / list）**：
+
+- `str(x)` = **转换器**：把东西变成字符串（`str(5)` → `'5'`）；同家族 `int('5')`→5、`float('3.5')`→3.5（互逆转换）
+- `map(函数, 可迭代)` = **批量加工器**：把函数应用到每个元素（一个进一个出）；返回 map 对象（**惰性，提货单**），`list()` 才兑现
+- `list(map(f, 数据))` 为什么能链：map 的产出 = list 的输入（加工车间 → 打包机）；`list(lambda, range)` ❌——list 只收**一个**参数，且函数不是可迭代对象（机器不能当原料）
+- **str 是"手"，map 是"流水线"**：推导式 = map 的直白写法，三写法等价：
+  ```python
+  nums = [1, 2, 3]
+  # 循环：for n in nums: result.append(str(n))
+  list(map(str, nums))        # ['1', '2', '3']
+  [str(n) for n in nums]      # ['1', '2', '3']（推荐）
+  ```
+- map 多挑多：`list(map(pow, [2,3], [10,11]))` 并行配对喂给函数
+- map 对象只能兑现一次（提货单只能提一次货），`list(m)` 两次第二次是空的
+
+#### 5.1.4 嵌套列表推导式（套娃升级）
+
+**一句话：表达式位置可以再放一个推导式。**
+
+**矩阵转置**（3×4 → 4×3，列变行）：
+
+```python
+matrix = [
+    [1, 2, 3, 4],
+    [5, 6, 7, 8],
+    [9, 10, 11, 12],
+]
+
+[[row[i] for row in matrix] for i in range(4)]
+# [[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]]
+```
+
+- **先读外层再读内层**：外层 for i = 列号（0~3）；内层 `[row[i] for row in matrix]` = 收集每一行的第 i 列 → 第 i 列变成新的一行
+- **执行顺序**：外层每迭代一次，**内层推导式完整跑一遍**（内层在"它之后的 for"的上下文中求值）
+- 等价展开（三层写法，结果一样）：
+  ```python
+  transposed = []
+  for i in range(4):
+      transposed.append([row[i] for row in matrix])
+  ```
+
+**更优解：内置函数 zip()**：
+
+```python
+list(zip(*matrix))
+# [(1, 5, 9), (2, 6, 10), (3, 7, 11), (4, 8, 12)]
+```
+
+- `*matrix` = **4.9.5 解包**（拆成 3 个独立参数传给 zip）
+- `zip(行1, 行2, 行3)` = 拉链式按位置配对（第 0 位 → (1,5,9)…），产出元组，惰性，`list()` 兑现
+- **原则：复杂嵌套推导式 → 优先想内置函数**（zip/sorted/enumerate），简洁可读优先
+- 量化预告：矩阵运算以后交给 numpy（`矩阵.T` 转置一行），现在手搓是为了懂原理
+
+### 5.2 del 语句（删除家族：按索引/切片/删变量）
+
+```python
+a = [-1, 1, 66.25, 333, 333, 1234.5]
+del a[0]       # ① 按索引删
+del a[2:4]     # ② 按切片删（含头不含尾）
+del a[:]       # ③ 清空列表（等价 a.clear()）——列表还在，只是空了
+del a          # ④ 删变量名本身！之后引用 a 报 NameError（除非重新赋值）
+```
+
+**删除家族对照表**：
+
+| 方式 | 按什么删 | 删完返回吗 | 找不到/越界 |
+|---|---|---|---|
+| `remove(x)` | 按值删第一个 | 不返回 | ValueError |
+| `pop(i)` | 按索引删 | **返回**被删的 | IndexError |
+| `del a[i]` | 按索引删 | 不返回 | IndexError |
+| `del a[2:4]` | 按切片删 | 不返回 | 安全（自动截断） |
+| `clear()` / `del a[:]` | 清空 | 不返回 | — |
+| `del a` | 删变量名 | 不返回 | — |
+
+- 记忆：**pop = 取走**（删了递给你），**del = 扔掉**（删了不递），**remove = 找名字删**（按内容）
+- 预告：5.5 字典用 `del d['key']` 删键；类里可删属性
+
 

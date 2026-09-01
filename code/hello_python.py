@@ -138,12 +138,12 @@
 # help(add)     # ← 终端会显示说明书
 
 
-def change_num(n):
-    n=100
+# def change_num(n):
+#     n=100
 
-x=5
-change_num(x)
-print(x)
+# x=5
+# change_num(x)
+# print(x)
 
 # def change_list(lst):
 #     lst.append(99)
@@ -151,3 +151,70 @@ print(x)
 # my_list =[1,2,3]
 # change_list(my_list)
 # print(my_list)
+
+# fruits = ['orange','apple', 'pear','banana','kiwi','apple','banana']
+# print(fruits);
+# print(fruits.count('apple'))  #数这个列表里有几个apple
+# print(fruits.index('banana',4 ))# 4 号位开始查找下一个 banana
+# fruits.reverse()#翻转列表
+# print(fruits)
+# fruits.append('grape')#在列表末尾添加一项
+# print(fruits)
+# fruits.sort()#原地排序列表中的元素 按照首字母的顺序
+# print(fruits)
+# print(fruits.pop())#跳出最后一个 返回的也是最后一个
+# print(fruits)
+
+# 5.1.2用列表实现队列
+# from collections import deque
+# queue=deque(["Eric","John","Michael"])
+# queue.append("Terry")
+# print(queue);
+# queue.append("Graham")          # Graham 到了
+# print(queue);
+# queue.pop()
+# print(queue);
+# queue.popleft()
+# print(queue);
+
+# 5.1.3列表推导式
+# squares = []
+# for x in range(10):
+#     squares.append(x**2)
+
+# squares
+# [0, 1, 4, 9, 16, 25, 36, 49, 64, 81]
+
+# [(x, y) for x in [1,2,3] for y in [3,1,4] if x != y]
+
+# vec = [-4, -2, 0, 2, 4]
+# print([x*2 for x in vec])
+# print([x*2 for x in vec if x>=0])
+# print([abs(x) for x in vec]) # 在每个元素上调用一个方法
+
+# freshfruit = ['  banana', '  loganberry ', 'passion fruit  ']
+# print([weapon.strip() for weapon in freshfruit])
+
+# 嵌套
+# vec = [[1,2,3], [4,5,6], [7,8,9]]
+# [num for elem in vec for num in elem]
+
+#5.1.4. 嵌套的列表推导式
+# matrix = [
+#     [1, 2, 3, 4],
+#     [5, 6, 7, 8],
+#     [9, 10, 11, 12],
+# ]
+# print(matrix)
+
+# [[row[i] for row in matrix] for i in range(4)]
+# [[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]]
+
+# transposed = []
+# for i in range(4):
+#     transposed.append([row[i] for row in matrix])
+
+# transposed
+# [[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]]
+
+
