@@ -218,3 +218,127 @@
 # [[1, 5, 9], [2, 6, 10], [3, 7, 11], [4, 8, 12]]
 
 
+
+
+#5.3元组和序列
+## ---------- 1. 数字四兄弟 ----------
+# i=42
+# f=3.14
+# b=True
+# print("int整除",17//5)
+# print("float除法",17/5)
+# print("bool",b+1)
+
+#---------- 2. 字符串：不可变、有索引 ----------
+# word = "Python"
+# print(word[0],word[1],word[3])
+# s= "hello"
+# s_new=s.upper()
+# print("原串",s,"新串",s_new)
+
+
+# ---------- 3. 列表：可变、最常用 ----------
+# prices= [100,102,101]
+# prices.append(105)
+# prices[0]=99
+# print("列表被改了",prices)
+
+
+# ---------- 4. 元组：不可变、异质记录 ----------
+# t = 12345,54321,"hello!"
+# print(t[0])
+# print(t)
+
+# u= t,(1,2,3,4,5)
+# print(u)
+
+# u=[1,2,3]
+# v=u,[3,2,1]
+# u[0:3]=[33,34,35]
+# del u[0]
+# del u[1]
+# del u[0]
+# print(v)
+
+# t = (5)
+# print(t)
+# t2=(5,)
+# print(t2)
+# print(len(t2))
+
+# x, y = 1, 2          # 其实是：先打包成 (1, 2)，再解包给 x, y
+# print(x)
+# print(y)
+# print(x,y)
+
+# x, y = y, x          # 右边先打包 (2, 1)，再解包 → 交换成功
+# print("右边先打包 (2, 1)，再解包 → 交换成功")
+# print(x)
+# print(y)
+# print(x,y)
+
+# a = [1, 2]
+# a += [3]
+# print(a)
+
+# t = (1, 2)
+# u = t
+# t += (3,)
+# print(u)
+
+
+# t = (1, (2, 3), (4, (5, 6)))
+# print(t[1])       # 猜？
+# print(t[2][1])    # 猜？
+# print(len(t))     # 猜？—— 3 还是 6？
+
+#x, y, z = 1, 2        # 左边 3 个坑，右边只有 2 个值 → 猜报什么？
+#a, b = 1, 2, 3        # 左边 2 个坑，右边 3 个值 → 猜报什么？
+
+# a = {1, 2, 3, 4}
+# b = {3, 4, 5, 6}
+# print(a - b)    # 猜？  {1, 2}（a 独有）
+# print(a | b)    # 猜？  {1, 2, 3, 4, 5, 6}（合并去重）
+# print(a & b)    # 猜？  {3, 4}（共同）
+# print(a ^ b)    # 猜？  {1, 2, 5, 6}（各边独有）
+
+
+# ① 去重 + 无序 + 查得快
+# basket = {'apple', 'orange', 'apple', 'pear', 'orange', 'banana'}
+# print(basket)                 # 顺序乱吗？重复还在吗？
+# print('apple' in basket)      # True
+# print(basket[0])              # 猜？→ 应该报错（集合没有索引）
+
+# ② 朋友圈四运算（自己造两个集合验证）
+# a = {1, 2, 3, 4}
+# b = {3, 4, 5, 6}
+# print(a - b)    # 猜？  {1, 2}（a 独有）
+# print(a | b)    # 猜？  {1, 2, 3, 4, 5, 6}（合并去重）
+# print(a & b)    # 猜？  {3, 4}（共同）
+# print(a ^ b)    # 猜？  {1, 2, 5, 6}（各边独有）
+
+# ③ 三个坑
+# s = {}
+# print(type(s))        # dict 不是 set！（坑 2）
+# s2 = set()
+# print(type(s2))       # set ✅
+# s3 = {[1, 2]}         # 报错！（列表不能进集合，坑 3）
+
+# ④ 去重实战：模拟数据源重复
+# 代码列表 = ['600519', '000001', '600519', '300750', '000001']
+# print(len(代码列表))              # 5
+# print(len(set(代码列表)))          # 3 —— 去重后
+
+
+
+# tel = {'jack': 4098}
+# print(tel['irv'])            # 报错？什么错？
+# print(tel.get('irv'))        # 不报错？输出什么？
+# print(tel.get('irv', 0))     # 输出什么？
+# d={'rack':1048}
+# print('rack' in d  )
+
+knights = {'gallahad': 'the pure', 'robin': 'the brave'}
+print(knights.items())
+
+
