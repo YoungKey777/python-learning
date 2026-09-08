@@ -420,3 +420,72 @@
 # print('A跑完：脚本没有ps1，符合预期')
 
 # 更新daily并且push点格子
+
+#6.3
+# import fibo
+# print(dir(fibo))
+
+# import sys
+# 'path' in dir(sys)             # True（6.1 搜索路径）
+
+
+# import fibo, sys, builtins
+
+# print('① fibo 口袋:', dir(fibo))
+# # → ['__name__', 'answer', 'fib', 'fib2']
+
+# print('② sys 熟人:')
+# print('   path:', 'path' in dir(sys))
+# print('   ps1:', 'ps1' in dir(sys))
+# print('   getrefcount:', 'getrefcount' in dir(sys))
+
+# print('③ builtins 老熟人:')
+# print('   print:', 'print' in dir(builtins))
+# print('   TypeError:', 'TypeError' in dir(builtins))
+# print('   zip:', 'zip' in dir(builtins))
+
+# print('④ 自己的口袋 fibo 在不在:', 'fibo' in dir())
+
+
+
+
+# a = [1, 2, 3]
+# import fibo
+# dir()                          # ['__builtins__', '__name__', 'a', 'fibo', ...]
+# # 为什么 print/len/zip 不用 import？→ 住在 builtins 模块
+# import builtins
+# 'print' in dir(builtins)       # True
+# 'TypeError' in dir(builtins)   # True（第5章踩的坑全在这）
+# # Python 启动时自动把 builtins 全家塞进命名空间 = "内置"的定义
+
+
+# import sound.effects.echo                # 全名引用：sound.effects.echo.函数()（太长）
+# from sound.effects import echo           # 推荐：echo.函数()
+# from sound.effects.echo import echofilter  # 函数直接可用：echofilter()
+
+
+
+# ── 6.4 实验：三种导入姿势 ─────────────────────────────
+# import sound.effects.echo               # 姿势1：全名
+# print('--- 姿势1 跑完 ---')
+
+# from sound.effects import echo          # 姿势2：推荐
+# print('--- 姿势2 跑完 ---')
+
+# from sound.effects.echo import echofilter  # 姿势3：直接拿函数
+# print('--- 姿势3 跑完 ---')
+
+
+# ── 6.4 实验：__all__ 控制 import * ────────────────────
+# from sound import *        # sound/__init__.py 里 __all__ = ['formats', 'effects']
+# print('effects' in dir())  # True  ← 名单里的，进来了
+# print('echo' in dir())     # False ← 没在名单里，* 不倒子模块
+# print('wavread' in dir())  # False ← 同上
+
+
+import sound.effects.echo     # 这次第一行会多出: >>> sound 包已加载（初始化执行一次）
+print('--- 姿势1 跑完 ---')
+
+from sound import *
+print('effects 在不在:', 'effects' in dir())   # True（__all__ 白名单放行）
+print('echo 在不在:', 'echo' in dir())         # False（没名单的不倒）

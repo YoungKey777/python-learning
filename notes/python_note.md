@@ -1679,6 +1679,85 @@ print('D 跑完: winreg 导入成功 —— Windows 专属模块，Linux 上会�
 
 **量化相关 💰：** 标准库的 os/pathlib/random/statistics 是以后写脚本的常客（读文件、随机、基础统计）；文档查法固定：`docs.python.org/zh-cn → 库参考`，pip 装的三方库（akshare/pandas）看它们自己的文档。
 
+### 6.3 dir() 函数（翻口袋神器，一行解决"忘了有啥"）
+
+**一句话：dir(某物) = 翻口袋——列出那个模块/命名空间里所有名字（排序好的字符串列表）；不带参数 = 翻自己桌面的口袋。**
+
+**① dir(模块) = 工具箱清单**
+```python
+import fibo
+print(dir(fibo))
+# → ['__name__', 'answer', 'fib', 'fib2']（教程例是3个，你的多 answer——
+#   dir 如实反映模块现在有什么，变量函数一视同仁）
+```
+
+**② dir(sys) 超长清单 = 找熟人游戏**
+```python
+import sys
+'path' in dir(sys)             # True（6.1 搜索路径）
+'ps1' in dir(sys)              # True（6.2 提示符）
+'getrefcount' in dir(sys)      # True（5.3 GC 计数牌！）
+# 每学一个新模块，dir 翻一遍 = 认识它家全部家当
+```
+
+**③ 不带参数 = 翻自己 + builtins 的秘密**
+```python
+a = [1, 2, 3]
+import fibo
+dir()                          # ['__builtins__', '__name__', 'a', 'fibo', ...]
+# 为什么 print/len/zip 不用 import？→ 住在 builtins 模块
+import builtins
+'print' in dir(builtins)       # True
+'TypeError' in dir(builtins)   # True（第5章踩的坑全在这）
+# Python 启动时自动把 builtins 全家塞进命名空间 = "内置"的定义
+```
+
+**记忆锚点：忘了模块有啥 → `dir(模块)`；忘了自己定义过啥 → `dir()`；查在不在 → `'x' in dir(某)`。**
+
+**量化相关 💰：** 拿到新装的数据包（下周的 akshare）第一步 = `dir(ak)` 翻家当 + `print(模块.__doc__)`——三秒摸清一个陌生库，这是探索任何量化工具的标准起手式。
+
+### 6.4 包（文件夹级模块组织——akshare 真身的结构）
+
+**一句话：包 = 文件夹 + `__init__.py` 许可证；点号 = 目录分隔符（`sound.effects.echo` = 三层文件夹）；它把"模块名防撞车"升级到"包名防撞车"（numpy/Pillow 各占一个顶级包名）。**
+
+**① 结构规则**
+```python
+# 文件夹 + __init__.py = 包；__init__.py 可空/可执行初始化代码/可写 __all__
+# 没有 __init__.py 的文件夹只是普通目录，Python 不当包（防重名目录误屏蔽标准库）
+```
+
+**② 三种导入姿势（推荐中间那种）**
+```python
+import sound.effects.echo                # 全名引用：sound.effects.echo.函数()（太长）
+from sound.effects import echo           # 推荐：echo.函数()
+from sound.effects.echo import echofilter  # 函数直接可用：echofilter()
+```
+
+**③ 两条查找规则**
+```python
+# from 包 import item：先查包内叫 item 的名字（函数/变量）→ 再当子模块加载 → 都没则 ImportError
+# import a.b.c 链：除最后一项外前面必须都是"包"；函数/变量不能当链中目录
+#   import sound.effects 合法（子包）；import ...echo.echofilter 非法（函数在链尾之后）
+```
+
+**④ __all__ = import * 的白名单（作者控制）**
+```python
+# 无 __all__：from 包 import * 不导入子模块，只导入包内已定义的名字
+# 有 __all__ = ["echo", "surround"]：只导入名单上的子模块
+# ⚠️ 遮蔽：__init__.py 里定义 def reverse() 会盖住同名 reverse.py 子模块
+# 生产代码不用 import *；推荐 from 包 import 具体子模块
+```
+
+**⑤ 相对导入（包内部模块互引）**
+```python
+# from . import echo          # . = 当前包
+# from .. import formats      # .. = 上级包
+# from ..filters import equalizer
+# ⚠️ 主模块（被直接运行的脚本）没有所属包 → 相对导入报错 → 主入口永远用绝对导入
+```
+
+**量化相关 💰：** akshare/pandas = 巨型包：`akshare.xxx` 就是"包.模块.函数"三层结构；装好后 `import akshare as ak` + `dir(ak)` 翻家当 = 探索新库标准起手式（6.3 埋的彩蛋落地）。
+
 ### 🧠 番外：Python 是怎么跑起来的（编译器/解释器/虚拟机三连问）
 
 **一句话：计算机只懂机器码，你的代码要翻译——编译器是"笔译"（一次性翻完全文）、解释器是"同声传译"（边翻边跑）；Python 用解释器，中间还夹了一个"软件假 CPU"（虚拟机）来执行字节码；这一切源于 Python 的"动态类型"设计选择。**
