@@ -338,7 +338,49 @@
 # d={'rack':1048}
 # print('rack' in d  )
 
-knights = {'gallahad': 'the pure', 'robin': 'the brave'}
-print(knights.items())
 
+# s1={1,2,3}
+# s2=set([1,2,3])
+# s3=set('abracadabra')
+# empty=set()
+# fake={}
+# # print(s1)
+# # print(s2)
+# print(s3)
 
+# knights = {'gallahad': 'the pure', 'robin': 'the brave'}
+# for a,b in knights.items():
+#     print(a,b)
+
+# knights = {'gallahad': 'the pure', 'robin': 'the brave'}
+# for i, v in enumerate(['tic', 'tac', 'toe']):
+#     print(i,v)
+#     print('华丽的分割线')
+
+# names = ['茅台', '平安', '宁德']
+# prices = [1500, 45, 250]
+
+# print(zip(names, prices))
+# # <zip object at ...> —— 惰性，是个"拉链机"，要用 list() 兑现或 for 拉
+
+# print(list(zip(names, prices)))
+# # [('茅台', 1500), ('平安', 45), ('宁德', 250)] ← 每对是一个元组！
+
+# print(dict(zip(names, prices)))
+# print(type(zip([1,2],[3,4])))
+
+# def 喊话(msg):
+#     print('执行了:', msg)
+#     return True
+
+# print('结果:', 喊话('A') and 喊话('B') and 喊话('C'))
+
+# def 喊话2(msg,ok):
+#     print('执行了:', msg)
+#     return ok
+
+# print('结果:', 喊话2('A',False) or 喊话2('B',False) or 喊话2('C',True))
+
+# prices = [1500, 45, 250]
+# if (n := len(prices)) > 2:
+#     print(f'有 {n} 只票，超过了 2 只') 
