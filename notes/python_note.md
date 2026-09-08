@@ -1489,3 +1489,241 @@ Python 容器五大家族
 - 要文本 → str
 - 要秒查去重/集合数学 → set
 - 要键值查表/关联信息 → dict
+
+---
+
+# 6. 模块（import 的完整世界观——量化的入口章）
+
+## 6.1 模块基础（工具箱搬运工）
+
+**一句话：模块 = 一个 .py 文件 = 一个工具箱；import = 把整个箱子搬上桌面；用里面的工具必须点名 `箱子.工具()`——防止名字撞车（命名空间隔离）。**
+
+**为什么要有模块（三个动机层层递进）：**
+```python
+# 动机 1：解释器一关就失忆 → 代码写进文件长期保存 = 脚本
+# 动机 2：脚本越长越难维护 → 拆成多个文件 = 模块
+# 动机 3：多程序共用同一函数 → 写一次、处处 import，告别复制粘贴
+```
+
+**① 模块 = 文件，模块名 = 文件名去掉 .py**
+```python
+# fibo.py 这个文件 = fibo 模块；里面的 def 平时躺着，被 import 才执行
+```
+
+**② import 只放盒子，不洒工具（命名空间防污染）**
+```python
+import fibo            # 桌面上多了一个叫 fibo 的盒子
+fibo.fib(1000)         # 用工具必须点名：fibo.函数
+# 函数名 fib/fib2 不会直接出现在你的命名空间——防覆盖你已定义的同名函数
+```
+
+**③ `__name__` = 模块名牌**
+```python
+fibo.__name__          # 'fibo'——模块知道自己叫什么
+```
+
+**④ 点名太长？请快捷方式**
+```python
+fib = fibo.fib         # 把函数"请"上桌面（复制引用，不是复制函数）
+fib(500)
+```
+
+**生活化比喻：** 模块 = 图书馆一本书；import = 整本借到桌上；`fibo.fib()` = 翻开第 x 页；下节的 from-import = 只复印一页带走。
+
+**量化相关 💰：** 明天见真身——`import akshare as ak`、`import pandas as pd`，每天拉数据全是"点名开箱" `ak.股票函数()`；等学了第 12 章还能把自己的策略写成模块四处 import，再也不复制粘贴。
+
+### 6.1 详解：导入全家桶 + 模块三问（双身份/去哪找/缓存）
+
+**一句话：导入有 4 种姿势（盒装/复印/别名/全倒），模块有双身份（主角 vs 工具），import 按 sys.path 挨个目录找文件，编译缓存全自动不用管。**
+
+**① 导入姿势对照表（先记选择逻辑）**
+```python
+import fibo                      # 整盒上桌 → fibo.工具（一次用很多工具时）
+from fibo import fib, fib2       # 复印带走 → 直接喊 fib（只用一两个时）
+import fibo as fb                # 盒子改名牌（akshare 太长 → as ak）
+from fibo import fib as 斐波那契   # 工具直接改名
+from fibo import *               # 全倒桌上 ⚠️ 危险：可能覆盖你的同名函数
+```
+
+**② import * 为什么危险（静默事故演示）**
+```python
+def fib(n):
+    print('我的 fib 出场！')
+from fibo import *    # fibo 的 fib 冲进来
+fib(10)               # → 0 1 1 2 3 5 8 ← 你的版本被悄悄顶掉，无报错
+# 经验：别用 *，代码读者无法得知你导入了什么
+```
+
+**③ 模块只初始化一次 + 热更新**
+```python
+import fibo       # 第 1 次 import 真加载（顶部 print 执行）
+import fibo       # 第 2 次秒回，不再执行（效率设计）
+# 改了模块内容不重启不生效 → 交互测试用 reload：
+import importlib
+importlib.reload(fibo)      # 强制重新加载
+```
+
+**④ 私有符号表（每家一个抽屉，井水不犯河水）**
+```python
+# fibo.py 里的全局变量 = fibo 家的私有财产
+print(fibo.answer)      # 42 → 用 模块名.变量名 访问
+fibo.answer = 100       # 知道自己在干嘛的话也能改
+# 模块内函数写全局变量也改的是自家的——不污染你的桌面
+```
+
+**⑤ 双身份：`__name__ == "__main__"`（策略文件的万能模板）**
+```python
+# fibo.py 末尾：
+# if __name__ == "__main__":     # 只有被"直接运行"才执行
+#     import sys
+#     fib(int(sys.argv[1]))      # sys.argv[1] = 命令行第 2 个参数
+#
+# 终端: python fibo.py 50  → 当主角跑，输出数列
+# hello_python.py 里 import fibo → 当工具用，main 块不执行
+# 以后写策略文件都靠这招：既能单独测试，又能被回测框架 import
+```
+
+**⑥ 搜索路径 sys.path（Python 去哪找模块）**
+```python
+import sys
+print(sys.path)
+# [脚本所在目录, PYTHONPATH 目录, 标准库, site-packages(pip 装的包)]
+# → 所以 fibo.py 必须和 hello_python.py 同目录！
+# ⚠️ 脚本目录优先于标准库 → 别把自己的文件起名 math.py / sys.py
+```
+
+**⑦ 编译缓存 __pycache__（不用管的自动机制）**
+```python
+# import 后 code 目录出现 __pycache__/fibo.cpython-xx.pyc
+# = 预编译版本，只加速"加载"，不加速"运行"
+# 靠对比修改时间自动判断过期、自动重编译；删了也无所谓，会再生成
+```
+
+**⑧ sys.path 实战解剖（亲跑输出对照三来源）**
+```python
+# 实跑 print(sys.path) 的典型输出（自己的电脑）：
+# [0] 脚本所在目录        e:\...\code          ← 来源①：fibo.py 必须同目录的原因
+# [1] PYTHONPATH 环境变量  C:\...\ArcGIS\bin   ← 来源②：ArcGIS 安装时塞进系统变量，
+#                                                跑任何 Python 都背着它（遥感人标配彩蛋）
+# [2+] anaconda3 老巢     python310.zip(DLLs)(lib)(lib\site-packages)
+#                        ← 来源③：解释器自动加；标准库 + 第三方包的家
+# import 从上往下挨家找，找到就停
+# 排查技巧：print(某模块.__file__) = 查户口，看它住在 sys.path 哪条街
+```
+
+**⑨ 内置模块 vs 文件模块（math 没有 __file__ 的真相）**
+```python
+# 找模块两档流程：① 先查内置模块表（编进解释器的 C 模块，如 math/sys）
+#                  ② 没命中才走 sys.path 找 .py/.pyd 文件
+import sys, math, fibo
+'math' in sys.builtin_module_names    # True  ← C 写、编进解释器、无源文件
+'fibo' in sys.builtin_module_names    # False ← 纯 Python 文件
+print(fibo.__file__)                  # code\fibo.py ✅ 有户口
+print(hasattr(math, '__file__'))      # False ❌ C 模块没户口（print(math.__file__) 会 AttributeError）
+# 为什么 math 用 C 写：math.sqrt 一秒被调几百万次，纯 Python 扛不住
+```
+
+### 6.2 标准模块（官方大超市 + sys 总服务台）
+
+**一句话：Python 自带几百个标准模块（官方"库参考"文档收录），部分焊死在解释器（math/sys），部分依赖操作系统（winreg 只有 Windows）；sys 每家都有，它的 path 是普通列表、能现场改。**
+
+**① 标准库 = 官方大超市，查字典入口 = 库参考文档**
+```python
+# sys/math/os/random... 全是官方自带，不用 pip
+# docs.python.org → Library Reference（库参考）= 查模块用法的官方词典
+```
+
+**② 内嵌模块 + 依赖 OS 的模块**
+```python
+import winreg        # ✅ Windows 专属（注册表接口），Linux 上直接 ModuleNotFoundError
+# sys 内嵌到每个解释器（数学/系统调用要走 C 接口所以内嵌——复习 math 无 __file__）
+```
+
+**③ sys.ps1 / sys.ps2：交互模式提示符（能改皮肤的彩蛋）**
+```python
+# sys.ps1 = '>>> '（主提示符） sys.ps2 = '... '（续行提示符）
+# 只在"交互模式"定义 → 在脚本里访问会 AttributeError！
+# 终端交互模式现场改：sys.ps1 = '🚀> ' → 提示符变 🚀>
+```
+
+**④ sys.path 是普通列表 → 列表操作直接改（5.1 闭环）**
+```python
+import sys
+sys.path.append('D:/某个目录')    # 临时让 import 多认识一条路（本次运行有效）
+# 意义：模块文件不必和脚本同目录——把它的家 append 进 path 也能 import（临时抱佛脚）
+# sys.path 初始化顺序：脚本目录 → PYTHONPATH → 内置默认（复习 6.1.2 三来源）
+```
+
+**🎯 动手实验：**
+```python
+# ── 实验 A：脚本里访问 sys.ps1 → 故意看它崩 ─────────────
+import sys
+# print(sys.ps1)   # AttributeError！提示符变量只在交互模式存在
+print('A 跑完：脚本没有 ps1，符合预期')
+
+# ── 实验 B：终端交互模式改提示符皮肤（脚本里跑不了！）──
+# 终端敲 python 进交互模式，然后：
+# >>> import sys
+# >>> sys.ps1 = '🚀> '
+# 🚀> print('提示符被我改了！')
+# 🚀> exit()          # 退出还原
+
+# ── 实验 C：sys.path.append 临时认路 ────────────────────
+sys.path.append('D:/随便一个目录')
+print('C 跑完，path 末尾:', sys.path[-1])    # 能看到刚加的目录
+
+# ── 实验 D：winreg 户口检查 ────────────────────────────
+import winreg
+print('D 跑完: winreg 导入成功 —— Windows 专属模块，Linux 上会崩')
+```
+
+**量化相关 💰：** 标准库的 os/pathlib/random/statistics 是以后写脚本的常客（读文件、随机、基础统计）；文档查法固定：`docs.python.org/zh-cn → 库参考`，pip 装的三方库（akshare/pandas）看它们自己的文档。
+
+### 🧠 番外：Python 是怎么跑起来的（编译器/解释器/虚拟机三连问）
+
+**一句话：计算机只懂机器码，你的代码要翻译——编译器是"笔译"（一次性翻完全文）、解释器是"同声传译"（边翻边跑）；Python 用解释器，中间还夹了一个"软件假 CPU"（虚拟机）来执行字节码；这一切源于 Python 的"动态类型"设计选择。**
+
+**① 编译器 vs 解释器（翻译时机决定一切）**
+```python
+# 编译器（C/C++/Go）：整本先翻译完 → 可执行文件（机器码）→ CPU 直接跑
+#   .c --编译--> .exe --运行--> CPU；翻译一次跑无数次；错误在翻译期暴露
+# 解释器（Python/R）：读一行 → 翻一行 → 执行一行
+#   开箱即跑、随时改随时看；每次运行都重新翻译 → 慢；错误在运行到那行才暴露
+# 翻译时机 = 语言的灵活度 vs 速度的取舍
+```
+
+**② Python 的真实流程：半编译半解释（产物就是 __pycache__）**
+```python
+# 源码.py --编译--> 字节码.pyc（中间码，不是机器码！）--解释器--> 逐条执行
+# 字节码与平台无关（6.1.3 笔记：编译模块与平台无关）→ 任何机器有 Python 就能跑
+# Java 同路线：.java → .class 字节码 → JVM 执行
+```
+
+**③ 语言虚拟机 = 软件假 CPU**
+```python
+# 两种"虚拟机"别混淆：
+#   系统虚拟机（VMware/云主机）= 模拟整台电脑，能装操作系统
+#   语言虚拟机（CPython/JVM）= 模拟一个假 CPU，只执行字节码
+# 运转：while 有下一条字节码: 读懂指令 → 指挥真 CPU 执行
+# 三个好处：跨平台（字节码中立）/ 安全可控（加一层安检）/ 替你管内存（GC！
+#   ——5.3 的引用计数回收就是虚拟机在干活；C 没这层所以要手动 free）
+# 代价：每条指令多一层"读-理解-转译"，比机器码慢几十倍
+```
+
+**④ 为什么 Python 不能直接编译成机器码（核心：动态类型）**
+```c
+// C：int x = 5; 编译时类型已知 → 直接生成整数加法机器码（类型焊死在指令里）
+```
+```python
+# Python：x = 5 运行时才知类型，还能改成字符串 → 运行前没人能替它选指令
+# → 只能等运行时由虚拟机现看现译（动态类型 = 需要 VM 的深层原因）
+```
+
+**⑤ 提速方案一览（面试弹药）**
+```python
+# JIT（Java HotSpot / PyPy）：运行时发现热点代码 → 编译成机器码缓存 → 逼近 C
+# Cython / Nuitka：给 Python 硬装编译器（标类型 → 编成 C → 机器码）
+# C 扩展：math/numpy/pandas 全走这条——热点计算外包机器码，Python 当指挥
+```
+
+**量化相关 💰：** 性能链条 = 机器码(C) > 字节码+JIT(Java/PyPy) > 纯字节码解释(Python)。量化答案 = "都要"：研究层用 Python 的虚拟机（一天试几百个想法，开发速度即生产力），瓶颈层外包 C（pandas/numpy 底层）。被问"Python 为什么慢怎么解决"答出 VM 逐条翻译 + 动态类型 + JIT/Cython/C 扩展 = 满分。

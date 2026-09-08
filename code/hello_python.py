@@ -384,3 +384,39 @@
 # prices = [1500, 45, 250]
 # if (n := len(prices)) > 2:
 #     print(f'有 {n} 只票，超过了 2 只') 
+
+# 6. 模块（import 的完整世界观——量化的入口章）
+
+# import fibo
+# fibo.fib(1000)
+# print(fibo.__name__)
+
+# fib= fibo.fib
+# fib(500)
+# print('fibo 模块被加载了！当前名牌:', __name__)
+
+# import demo
+# print(demo.path)
+# import sys
+# print(sys.path)
+
+
+# import math, fibo
+# print(math.__file__)     # D:\Users\27182\anaconda3\lib\math.py ← 标准库的家
+# print(fibo.__file__)     # e:\OB\...\code\fibo.py ← 你自己的家（脚本目录）
+
+# import sys, math, fibo
+
+# print('math 是内置模块吗?', 'math' in sys.builtin_module_names)   # → True
+# print('fibo 是内置模块吗?', 'fibo' in sys.builtin_module_names)   # → False
+
+# print(fibo.__file__)       # 纯 Python 模块：有户口 ✅
+# print(hasattr(math, '__file__'))   # → False：C 模块没户口
+# # print(math.__file__)     # 别再问了，会报错（就是刚才那行）
+
+
+#6.2
+# import sys
+# print('A跑完：脚本没有ps1，符合预期')
+
+# 更新daily并且push点格子
