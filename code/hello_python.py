@@ -483,9 +483,76 @@
 # print('wavread' in dir())  # False ← 同上
 
 
-import sound.effects.echo     # 这次第一行会多出: >>> sound 包已加载（初始化执行一次）
-print('--- 姿势1 跑完 ---')
+# import sound.effects.echo     # 这次第一行会多出: >>> sound 包已加载（初始化执行一次）
+# print('--- 姿势1 跑完 ---')
 
-from sound import *
-print('effects 在不在:', 'effects' in dir())   # True（__all__ 白名单放行）
-print('echo 在不在:', 'echo' in dir())         # False（没名单的不倒）
+# from sound import *
+# print('effects 在不在:', 'effects' in dir())   # True（__all__ 白名单放行）
+# print('echo 在不在:', 'echo' in dir())         # False（没名单的不倒）
+
+# while True print('Hello world')     ← 前面加个 # 就行
+
+
+# ── 8.1 语法错误实验 ────────────────────────────
+# 实验1: 缺冒号(取消注释 → 看箭头骗局 + 连坐 → 看完注释回去)
+# while True print('Hello world')
+# 实验2: 括号没合(取消注释 → 报错追到文件末尾 unexpected EOF)
+# print('字符串没关
+# 实验3: 配合实验1玩连坐——实验1取消注释时,这行会被连坐打印不出:
+
+# print('✅ 语法绿灯 = 当前文件没有任何语法错误')
+
+# print(10 * (1/0))
+# print(4 + spam * 3)
+
+# print(int('2') + 2)        # 4   ← 字符串转数字 → 真·加法
+# print('2' + str(2))        # '22' ← 数字转字符串 → 拼接
+# print(type(int('2') + 2))  # int  ← 加法结果是数字
+# print(type('2' + str(2)))  # str  ← 拼接结果是字符串
+
+# import builtins
+# print('ZeroDivisionError' in dir(builtins))   # True
+# print('TypeError' in dir(builtins))           # True
+
+# while True:
+#     try:
+#         x = int(input("Please enter a number: "))
+#         break          # int() 成功才会走到这 → 退出循环
+#     except ValueError:
+#         print("Oops!  That was no valid number.  Try again...")
+
+# try:
+#     f = open('myfile.txt')     # 可能抛出 OSError（文件不存在/权限）
+#     i = int(f.readline())      # 可能抛出 ValueError（内容不是数字）
+#     print(i)
+# except OSError as err:         # 第一个匹配的执行，其他不执行
+#     print("OS error:", err)
+# except ValueError:
+#     print("Could not convert data to an integer.")
+# # 一条 try 挂多张网，从上往下第一个接住算数
+
+
+# class B(Exception): pass       # 祖辈
+# class C(B): pass               # 父辈
+# class D(C): pass               # 子辈（也是 C 和 B 的子类）
+# for cls in [B, C, D]:
+#     try:
+#         raise cls()
+#     except D: print("D")       # 子类在前！
+#     except C: print("C")
+#     except B: print("B")
+
+
+# raise ValueError(1)
+
+# ── 实验 3：裸 raise——中间层留痕再上交 ─────────────────
+def 内层():
+    raise NameError('HiThere')   # 源头在这
+def 中间层():
+    try:
+        内层()
+    except NameError:
+        print('中间层:记录到日志,然后上交')
+        raise                     # 原样转抛!
+中间层()
+

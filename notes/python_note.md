@@ -1806,3 +1806,497 @@ from sound.effects.echo import echofilter  # 函数直接可用：echofilter()
 ```
 
 **量化相关 💰：** 性能链条 = 机器码(C) > 字节码+JIT(Java/PyPy) > 纯字节码解释(Python)。量化答案 = "都要"：研究层用 Python 的虚拟机（一天试几百个想法，开发速度即生产力），瓶颈层外包 C（pandas/numpy 底层）。被问"Python 为什么慢怎么解决"答出 VM 逐条翻译 + 动态类型 + JIT/Cython/C 扩展 = 满分。
+
+## 8 错误与异常（报错急救章——量化拉数据每天都要用）
+
+### 8.1 错误两大族 + 语法错误（编译期拒稿）
+
+**一句话：错误分两种——语法错误是"编译期拒稿"（整个文件翻译失败、一行都不跑），异常是"运行期事故"（8.2 主角：翻译成功、执行到某一行才出错）；根源 = 🧠番外②的"半编译半解释"——.py 先编译成 .pyc，这一步不过，啥都别谈。**
+
+**① 错误地图：其实是三类——别把"异常"当"逻辑没设计好"**
+```python
+# 语法错误 SyntaxError = Python 读不懂你的句子 → 跑之前就出错（编译期拒稿）
+#   有红字：文件名 + 行号 + 箭头（8.1 主角；根因 = 🧠番外②的编译步骤失败）
+# 异常 Exception = 话说通了、执行到某一步踩雷 → 跑起来才出错（8.2 主角）
+#   有红字：哪一行、什么事故。关键：往往是"外部事故/边界情况"，不是逻辑错！
+#   （文件被删 / 网络断 / 除零 / 索引越界 / 数据里冒 None——逻辑写得再
+#     完美，外部世界一抽风照样出错 → try/except 是上保险，不是改逻辑）
+# 逻辑错误 = 隐形第三类：不出错！安静跑完给你错答案，一句红字都没有
+#   （该 > 写成 <、策略条件写反——比异常可怕，因为没有任何提示）
+# 判断口诀：跑之前出错 = 语法错误（当场被抓）；跑起来出错 = 异常（红字指路）；
+#           跑完结果错 = 逻辑错误（最难抓，只能自己查）
+```
+
+| 类型 | 什么时候出错 | 红字提示 | 例子 |
+|---|---|---|---|
+| ① 语法错误（8.1） | **跑之前**——编译期拒稿，全文件连坐 | 有：文件名 + 行号 + 箭头 | `while True print(...)` 漏冒号 |
+| ② 异常（8.2 主角） | **跑起来**执行到某一行才出错 | 有：哪一行、什么事故 | 文件被删 / 网络断 / 除零 / 越界 / 冒出 None |
+| ③ 逻辑错误（隐形杀手） | **根本不出错**，安静跑完 | 无——给你一个错的答案 | 该 `>` 写成 `<`、策略条件写反 |
+
+**② 报错三件套 = 事故定位地图（文件 + 行号 + 箭头）**
+```python
+while True print('Hello world')
+  File "hello_python.py", line 3
+    while True print('Hello world')
+               ^^^^^
+SyntaxError: invalid syntax
+# 文件名 → 去哪修；行号 → 修第几行；箭头 → 解析器"绊倒"的确切位置
+# <stdin> = 交互模式输入的标记；从 .py 文件跑会显示真实文件名（6.1 见过）
+```
+
+**③ 核心坑：箭头 ≠ 修复点**
+```python
+# 上面箭头指 print，真缺的是 while 后面的冒号（while True: 才完整）
+# 解析器只能报告"我在这里读不下去了"——它不知道你在前面漏了什么
+# 病因 = 从箭头往前找"结构缺口"：漏冒号 / 漏括号 / 引号没合
+```
+
+**④ 连坐效应：一个语法错误 = 全文件拒跑**
+```python
+# .py 是按整文件编译的：任一行语法错 → 整个 .pyc 编译失败
+# → 后面的代码一行都轮不到执行（实验 3 最直观）
+# 别惊讶"我只错一行为什么全都不跑"——编译期一刀切
+```
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# ── 实验 1：缺冒号（删掉 # 取消注释，看"箭头骗局"）─────────────
+# while True print('Hello world')
+# 预期报错：SyntaxError: invalid syntax
+#          箭头 ^^^^^ 指着 print —— 但缺的是 while 后的冒号！
+
+# ── 实验 2：括号没合（报错会追到文件末尾）───────────────────
+# print('字符串没关
+# 预期报错：SyntaxError: unexpected EOF while parsing
+#          EOF = End Of File，解析器读到文件底才发现括号没合上
+
+# ── 实验 3：连坐效应（先取消实验 1 的注释再跑这行）────────────
+print('✅ 这行能打印 = 当前文件没有任何语法错误')
+# 实验 1 取消注释后：连这行都不打印！语法错误 = 全文件拒跑
+
+# ── 实验 4：正确写法长这样（跑之前深呼吸——是死循环）───────────
+# while True:
+#     print('无限循环演示：Ctrl+C 打断')
+```
+
+**量化相关 💰：**
+```python
+# ① 策略脚本语法错误 = 启动即死、连日志都没有——最常藏在熬夜赶工最后加的
+#    几行里：while/if/for 漏冒号、括号没合（unexpected EOF）、引号半截
+# ② 报错三件套不是用来怕的，是顺藤摸瓜的事故地图：文件+行号+箭头，
+#    从箭头往前找缺口，5 秒定位——先读报错再动手，别对着屏幕瞎猜
+# ③ 想通"编译期一刀切"后养成的习惯：改完几行立刻跑，别攒一大坨再跑
+#    （语法错只能盲猜哪行漏了冒号，悔不当初）
+```
+
+### 8.2 异常
+
+**一句话：语法对了照样出错——异常 = 程序执行到某一行踩了雷；报错最后一行是"判决书"（异常类型 + 原因），往上全是"事发经过"；异常类型都叫 XXXError，名字本身就是线索。8.1 三分法的"跑起来出错"主角。**
+
+**① 什么是异常（与语法错误的位置差）**
+```python
+# 语法全对、能编译、开始跑了 → 执行到某一步踩雷 = 异常
+# 官方："异常不一定导致严重后果"——因为 8.3 就能学会处理它（try/except）
+# 出错的地方往往不是逻辑错，而是外部事故/边界情况（8.1 ① 三分法复习）
+```
+
+**② Traceback 阅读姿势（终身技能——从下往上读！）**
+```python
+Traceback (most recent call last):     # ① 标题："最近一次"事故的完整回溯
+  File "<stdin>", line 1, in <module>  # ② 地点：哪个文件第几行、在哪个模块层
+    10 * (1/0)                         # ③ 原文：出错那行复给你看
+          ~^~                          # ④ 精确标记：出事的子表达式（1/0！）
+ZeroDivisionError: division by zero    # ⑤ 判决书：异常类型 + 事故原因 ← 先看这行！
+# 阅读顺序 = 从下往上：最后一行是"判决"（出了什么错），往上 = 事发经过
+# 函数嵌套调用时，②处会"叠罗汉"一层套一层（8.3 细讲）
+# 错误信息最后一行 = 类型 + 细节；类型名 = 内置异常名
+```
+
+**③ 三兄弟先混脸熟（以后天天见）**
+```python
+# ZeroDivisionError：除数为 0（数学上不允许）→ 第一反应：分母会不会是 0？
+# NameError：用了没定义的名字 → 拼错？漏赋值？漏 import？（90% 是拼错/抄漏）
+#   spam*3 里 spam 从没被赋值 → Python 翻遍命名空间找不到 → 当场举报
+# TypeError：类型不搭硬凑 → 先 type() 看两边再决定转谁
+#   '2' + 2 报 can only concatenate str (not "int") to str
+#   Python 不做隐式类型转换（C/JS 会默默转，Python 不惯着）——显式转：int('2')+2
+```
+
+| 异常类型                | 触发场景     | 你的第一反应               |
+| ------------------- | -------- | -------------------- |
+| `ZeroDivisionError` | 除数为 0    | 分母会不会是 0？加个判断        |
+| `NameError`         | 用了没定义的名字 | 拼错？漏赋值？漏 import？     |
+| `TypeError`         | 类型不搭硬凑   | 先 `type()` 看两边，再决定转谁 |
+
+**④ 报错标记升级（3.11+）：~^~ 精确指到出事子表达式**
+```python
+# 10 * (1/0) 下标记 ~^~ 只圈住 (1/0) → 事故现场是除法，不是乘法！
+# '2' + 2    下标记 ~~~~^~~ 圈住加法 → 不是整行箭头（8.1 的整行 ^^^^^
+#   是"读不懂整句"，这里是"这句能读、但这里出错了"——定位越来越精准）
+```
+
+**⑤ 异常类型是 builtins 的身份证，不是关键字**
+```python
+# ZeroDivisionError / NameError / TypeError 与 print/len 同住 builtins（6.3 复习）
+# import builtins; 'TypeError' in dir(builtins) → True
+```
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# ── 实验 1：除零（看 ~^~ 只圈住 1/0）─────────────────────
+# print(10 * (1/0))
+# 预期：ZeroDivisionError: division by zero
+
+# ── 实验 2：名字没定义（最常见的低级错误）─────────────────
+# print(4 + spam * 3)
+# 预期：NameError: name 'spam' is not defined
+
+# ── 实验 3：类型硬凑（Python 不玩隐式转换）────────────────
+# print('2' + 2)
+# 预期：TypeError: can only concatenate str (not "int") to str
+#      修法：int('2') + 2 → 4
+
+# ── 实验 4：异常类型的户口（builtins 老熟人）──────────────
+# import builtins
+# print('ZeroDivisionError' in dir(builtins))   # True
+# print('TypeError' in dir(builtins))           # True
+
+# ── 实验 5：拼错函数名 = 和拼错变量一个下场 ──────────────
+# prnt('hello')
+# 预期：NameError: name 'prnt' is not defined
+```
+
+**量化相关 💰：**
+```python
+# ① NameError：从文档/博客抄 akshare 代码，变量名抄错/漏 import → 名字没定义；
+#    报错会直接点名缺的是谁
+# ② TypeError：接口返回的字符串数字 '1500.5' 直接拿去算 → str 不能和 float 加；
+#    先 float() 转换——pandas 处理前的常客
+# ③ ZeroDivisionError：算收益率/仓位/涨跌幅时分母为 0——停牌没成交、新上市
+#    没昨收、空数据。写计算先问"分母可能为 0 吗"
+# ④ 读报错心法：最后一行 = 判决书（先看），往上 = 事发经过——报错不是红字
+#    天书，是 Python 递给你的诊断书
+```
+
+### 8.3 异常的处理（try/except——给代码上保险）
+
+**一句话：程序运行到某一步可能出错（叫异常）——try/except 是给这些操作准备的补救方案：可能出错的代码放进 try，真出错了就按 except 里写的去处理，程序不会中断；没出错就直接跳过 except。**
+
+**① try/except 工作流（安全网怎么运转）**
+```python
+try 子句（危险区）
+ ├─ 没出错 → 跳过 except → 继续往后走 ✅
+ ├─ 出错了、类型匹配 → 进对应 except 处理 → 处理完继续往后走 ✅
+ └─ 出错了、类型不匹配 → 抛给外层 → 没有外层 = 未处理 → 程序终止（红字）
+# 质变点：之前程序一出错程序就终止（8.2 实验全那样），现在出错了也有人接住，程序活着走完
+```
+
+**② 输入验证循环（经典模式，天天用）**
+```python
+while True:
+    try:
+        x = int(input("Please enter a number: "))
+        break          # int() 成功才会走到这 → 退出循环
+    except ValueError:
+        print("Oops!  That was no valid number.  Try again...")
+# 输入 "abc" → int() 抛出 ValueError → 被接住 → 循环再来一次
+# 输入 "123" → 转换成功 → break → 退出
+# Ctrl+C（KeyboardInterrupt）不是 ValueError → 接不住 → 程序正常被中断
+# break 放 try 里：成功才执行，出错了被 except 截胡——"一直问到成功"就这写法
+```
+
+**③ 多 except = 分类保险（最多执行一个）**
+```python
+try:
+    f = open('myfile.txt')     # 可能抛出 OSError（文件不存在/权限）
+    i = int(f.readline())      # 可能抛出 ValueError（内容不是数字）
+except OSError as err:         # 第一个匹配的执行，其他不执行
+    print("OS error:", err)
+except ValueError:
+    print("Could not convert data to an integer.")
+# 一条 try 挂多张网，从上往下第一个接住算数
+```
+
+**④ 继承匹配 + 顺序陷阱（最烧脑）**
+```python
+class B(Exception): pass       # 祖辈
+class C(B): pass               # 父辈
+class D(C): pass               # 子辈（也是 C 和 B 的子类）
+for cls in [B, C, D]:
+    try:
+        raise cls()
+    except D: print("D")       # 子类在前！
+    except C: print("C")
+    except B: print("B")
+# 输出 B C D
+# 机制：D 的实例同时也是 C、B 的实例（子类"是"父类的一种——仓鼠是啮齿目，
+#       啮齿目是哺乳动物）；except 从上往下找第一个能认领它的
+# ⚠️ 顺序规则：先写具体的（子类）再写宽泛的（父类）
+#    把 except B 放最前 → 输出 B B B：祖辈全包，子类特殊性被吞，bug 失声
+```
+
+**⑤ raise = 手动触发异常（平时是运行出错才触发，raise 是自己指定触发）**
+```python
+try:
+    raise Exception('spam', 'eggs')   # 主动抛 + 带参数
+except Exception as inst:             # as inst = 接住异常"本尊"
+    print(type(inst))    # <class 'Exception'>
+    print(inst.args)     # ('spam', 'eggs') ← 参数存在 .args
+    print(inst)          # ('spam', 'eggs') ← 内置 __str__ 直接打印
+    x, y = inst.args     # 解包参数
+# 用途：自己写函数时参数不合法就主动报错，如 买入(代码,价格) 价格<=0
+#   → raise ValueError('价格必须为正')；异常 = 函数与调用方的"报警协议"
+```
+
+**⑥ 异常家族图（为什么 Ctrl+C 杀不死 try/except）**
+```python
+BaseException ← 所有异常的老祖宗
+├── SystemExit          # sys.exit() 正常退出（不是事故！）
+├── KeyboardInterrupt   # Ctrl+C 强制中断（设计如此：不该被吞！）
+└── Exception ← 平时处理的主干线 ★
+    ├── ValueError / TypeError / ZeroDivisionError / OSError / ...
+# except Exception: = "几乎全抓"通配符——能不用就不用：真 bug 也会被吞
+#   （该报错却没报，你都不知道策略错在哪 = 自己造 8.1 说的"隐形杀手"）
+# KeyboardInterrupt 不是 Exception 子类 → except Exception 抓不到
+#   → Ctrl+C 永远能中断程序（故意的：强制退出不该被保险网接住）
+```
+
+**⑦ else 子句 = 没出错才走的路（4.5 循环 else 同款思想）**
+```python
+try:
+    f = open(arg, 'r')          # 危险动作
+except OSError:
+    print('cannot open', arg)
+else:                            # ← 只有 try 成功才执行
+    print(arg, 'has', len(f.readlines()), 'lines')
+    f.close()
+# 为什么成功代码不放 try 里？try 里任何异常都会找 except——成功路径的代码
+# 自己出错会被误伤接住（还以为是开门失败）；放 else 里，它的异常归别处管
+```
+
+**⑧ 异常穿透函数（try 包调用点，不是函数内部）**
+```python
+def this_fails():
+    x = 1/0               # 函数内部出错
+try:
+    this_fails()          # 但网包在调用点！
+except ZeroDivisionError as err:
+    print('Handling run-time error:', err)
+# 异常沿调用链一路往回抛直到找到 except → traceback 叠罗汉的由来
+# 意义：写小函数不用每个都包 try，让调用方统一兜底
+```
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# ── 实验 1：第一张安全网（先输 abc 感受接住重来，再输 123 看退出）──
+# while True:
+#     try:
+#         x = int(input("Please enter a number: "))
+#         break
+#     except ValueError:
+#         print("Oops!  That was no valid number.  Try again...")
+# print('成功退出!x =', x)
+
+# ── 实验 2：程序不暴毙（试完换回注释）───────────────────
+# try:
+#     x = int('abc')       # 抛出 ValueError
+#     # x = 1 / 0          # 换这行抛出 ZeroDivisionError
+# except ValueError:
+#     print('值不对:ValueError 被接住')
+# except ZeroDivisionError:
+#     print('除零了:ZeroDivisionError 被接住')
+# print('✅ 程序没死,走到了最后一行')
+
+# ── 实验 3：继承匹配（子类在前）────────────────────────
+# class B(Exception): pass
+# class C(B): pass
+# class D(C): pass
+# for cls in [B, C, D]:
+#     try:
+#         raise cls()
+#     except D: print("D")
+#     except C: print("C")
+#     except B: print("B")
+# 预期输出:B C D
+
+# ── 实验 4：调换顺序的灾难（把 except B 挪最前）───────────
+# 预期输出:B B B ← 祖辈全包,子类特殊性被吞
+
+# ── 实验 5：主动 raise + 接住异常本尊 ──────────────────
+# try:
+#     raise Exception('spam', 'eggs')
+# except Exception as inst:
+#     print(type(inst))   # <class 'Exception'>
+#     print(inst.args)    # ('spam', 'eggs')
+#     print(inst)         # ('spam', 'eggs')
+#     x, y = inst.args
+#     print('x =', x, 'y =', y)
+
+# ── 实验 6：else 子句（没出错才走）────────────────────────
+# try:
+#     x = int('42')            # 改 int('abc') 看 else 不执行
+# except ValueError:
+#     print('值不对')
+# else:
+#     print('✅ 转换成功才走到这,x =', x)
+
+# ── 实验 7：异常穿透函数（网包调用点）────────────────────
+# def this_fails():
+#     return 1 / 0
+# try:
+#     this_fails()
+# except ZeroDivisionError as err:
+#     print('Handling run-time error:', err)
+```
+
+**量化相关 💰：**
+```python
+# ① 拉数据标配：网络/接口不可靠 → try/except 包住请求，失败重试或降级
+# ② 数据清洗标配：float('1500.5') 遇脏数据抛出 ValueError → 接住后跳过/记日志
+# ③ 纪律：except 写具体类型！裸 except:/except Exception: 兜一切 = 把策略
+#    的真 bug 也吞了——该报错却没报，亏了钱都不知道（自己造隐形杀手）
+# ④ 主动报警：写自己函数时参数不合法就 raise ValueError('xxx 必须为正')
+#    ——比返回 None 优雅的"报警协议"
+# ⑤ 心法：try 范围越小越好——只包"可能出错的那一行"，别包一大坨（误伤率低）
+```
+
+### 8.4 触发异常（raise 三形态——8.3 实验里都摸过，这节官方正名）
+
+**一句话：异常不只能等它自己冒出来——raise 可以自己指定触发：带话抛、抛家族名（自动造人）、在 except 里裸 raise 原样上交。**
+
+**① 三种形态**
+```python
+raise NameError('HiThere')     # 形态1：抛实例 + 带话——'HiThere' = 异常参数
+                               #   → 显示在判决书尾部：NameError: HiThere
+                               #   '话' 存进 .args（8.3 ⑤）
+raise ValueError               # 形态2：抛家族名 = 官方简写，自动无参实例化
+                               #   完全等价 raise ValueError()
+raise                          # 形态3（except 里）：原样重抛当前异常 ← 干货
+```
+
+**② 裸 raise = 分层上报（"先留痕再上交"）**
+```python
+try:
+    raise NameError('HiThere')
+except NameError:
+    print('An exception flew by!')   # ① 先在这层留记录（打日志）
+    raise                            # ② 原样上交——异常继续往外抛
+# 输出 An exception flew by! 之后 traceback 照样冒出来（上层没人接 → 终止）
+# 为什么接住又抛掉？中间层不处理但要留痕；上层（调用方）再处理或告警
+# 为什么裸 raise 不重新 raise 一个？裸 raise 原封不动——原始案发现场
+#   （traceback）都保留；重抛别的异常 = 现场丢失
+# 与 8.3 教程模式对应：except Exception as err: print(...); raise
+```
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# ── 实验 1：带话抛（形态1）────────────────────────────
+# raise NameError('HiThere')
+# 预期：NameError: HiThere
+
+# ── 实验 2：抛家族名 = 自动造人（形态2 官方简写）──────────
+# raise ValueError
+# 预期：ValueError（等价 raise ValueError()）
+
+# ── 实验 3：裸 raise——中间层留痕再上交 ─────────────────
+# def 内层():
+#     raise NameError('HiThere')   # 源头在这
+# def 中间层():
+#     try:
+#         内层()
+#     except NameError:
+#         print('中间层:记录到日志,然后上交')
+#         raise                     # 原样转抛!
+# 中间层()
+# 预期：先打印"中间层:记录到日志,然后上交"
+#       traceback 的源头仍显示 内层 那行（现场保留!）
+```
+
+**量化相关 💰：**
+```python
+# 裸 raise 模式 = 日志 + 分层处理标配：底层函数失败就 raise（不自己吞）
+# → 中间层 try/except 记日志后裸 raise → 顶层统一兜底（重试/告警/降级）
+# 每层职责分明：底层发现问题、中间留痕、顶层做决策
+#（8.3 ⑧ "让调用方统一兜底"的落地版）
+```
+
+### 8.5 异常链
+
+**一句话：在 except 处理事故的过程中又抛出新异常，Python 会把两个事故"链"起来一起展示（旧案卷 + 新案卷）；`raise ... from` 显式声明"新的是旧的直接造成的"；`from None` = 只让新的出场。**
+
+**① 隐式链（处理时又出新事故）**
+```python
+try:
+    open('database.sqlite')      # 事故1：文件不存在 → OSError
+except OSError:
+    raise RuntimeError('unable to handle error')   # 事故2：处理时又抛新的
+# Python 自动把两段案卷链起来，中间一行英文隔开：
+#   During handling of the above exception, another exception occurred:
+#   ↑ "处理上述异常时，又发生了另一个异常"
+# 设计意图：调试要完整因果链——光看 RuntimeError 不知它从哪来
+```
+
+**② 显式声明因果：raise ... from exc（异常转换标配）**
+```python
+def func():
+    raise ConnectionError            # 底层：连不上
+try:
+    func()
+except ConnectionError as exc:
+    raise RuntimeError('Failed to open database') from exc
+# 中间那行变成：
+#   The above exception was the direct cause of the following exception:
+#   ↑ "上述异常是下面异常的直接原因"（比隐式链更明确 = 手动盖章）
+# 用途：底层异常太细（ConnectionError 谁看得懂）→ 上层包装成业务语言
+#   RuntimeError('Failed to open database')，但 from exc 保留根源供排查
+```
+
+**③ from None = 断链（旧案卷保密）**
+```python
+try:
+    open('database.sqlite')
+except OSError:
+    raise RuntimeError from None     # 只显示新异常，干净
+# 用途：旧异常是预料中的触发条件（不是真 bug），真正的问题是新的本身
+#   旧案卷只会制造噪音
+```
+
+| 写法 | 中间提示 | 含义 |
+|---|---|---|
+| except 里直接 `raise 新异常` | During handling of... | 自动附带：处理时顺带出了新事故 |
+| `raise 新 from exc` | was the direct cause of... | 手动声明：新的是旧的直接造成的 |
+| `raise 新 from None` | （无） | 断链：旧的保密 |
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# ── 实验 1：隐式链（处理时又出事）──────────────────────
+# try:
+#     open('database.sqlite')
+# except OSError:
+#     raise RuntimeError('unable to handle error')
+# 预期：两段 traceback，中间夹 During handling of the above exception...
+
+# ── 实验 2：显式因果 raise ... from exc ────────────────
+# def func():
+#     raise ConnectionError
+# try:
+#     func()
+# except ConnectionError as exc:
+#     raise RuntimeError('Failed to open database') from exc
+# 预期：中间显示 The above exception was the direct cause of...
+
+# ── 实验 3：from None 断链 ───────────────────────────
+# try:
+#     open('database.sqlite')
+# except OSError:
+#     raise RuntimeError from None
+# 预期：只有一段 traceback（RuntimeError），旧案卷没出场
+```
+
+**量化相关 💰：**
+```python
+# 异常转换 = 分层代码标配：底层库（akshare/requests）抛网络细节
+#   （ConnectionError/Timeout）→ 中层包一层业务异常
+#   raise 拉取失败('600519 日线') from exc → 上层只认业务语言
+# 三层各说各话：底层说细节、中层翻译、顶层做决策；from exc 保留根源
+```
