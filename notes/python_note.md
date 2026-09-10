@@ -2300,3 +2300,619 @@ except OSError:
 #   raise 拉取失败('600519 日线') from exc → 上层只认业务语言
 # 三层各说各话：底层说细节、中层翻译、顶层做决策；from exc 保留根源
 ```
+
+**📌 8.5 再消化（2026-09-10 补：亲手做实验 A/B + 判断题后）**
+
+**① 说法纠正：raise 不是"调用"**
+```python
+# raise 不是函数，不用括号也生效——它是一个动作：抛出 / 上报
+# 正确说法："except 里执行到 raise 这行，主动抛出了一个新异常"
+# 错误说法："except 又调用了 raise"
+# 屏幕上的两段 traceback 不是 raise 打的：是"新异常最终没人接住、程序终止前"解释器广播的
+# （外面再套一层能接住，屏幕上就一个字都不会有）
+```
+
+**② 异常归谁管（本次最重要的规则）**
+
+一句话：**异常是在哪个 try 块里冒出来的，就归哪个 try 管；except 块里冒出来的异常，不归这条 try 管，归外面。**
+
+```python
+# 并列（实验A）：兄弟 except 接不住
+try:
+    open('database.sqlite')
+except OSError:
+    print('第一层：接住了 FileNotFoundError，准备上报')
+    raise RuntimeError('unable to handle error')
+except RuntimeError:        # ← 这张网完全没被触发（"第二层"那行永远不出现）
+    print('第二层：接住了 RuntimeError')
+# 结果：只打印"第一层…"→ 然后两段 traceback
+# 原因：兄弟 except 和 try 块是平级的，不是"块的一部分"，管不着彼此
+
+# 嵌套（实验B）：外层网接得住 → 安静
+try:
+    try:
+        open('database.sqlite')
+    except OSError:
+        print('里层：接住了，上报 RuntimeError')
+        raise RuntimeError('打包成业务错误')
+except RuntimeError as e:   # ← 外层网接住 → 一个 traceback 都没有
+    print('外层接住了：', e)
+# 原因：里层 try 整体坐在外层 try 块里 → 里层冒出的异常 = "外层 try 块里发生的事"
+```
+
+**"并列 vs 嵌套"是表面结构，真正决定成败的是：异常从哪个块里冒出来。** 这正是 8.3 官方那条规则（处理器只处理对应 try 子句中的异常，不处理同一 try 内其他处理器中的异常）、也是 8.4 裸 raise 分层上报的"规则版"——中间层接住 → 上报 → 上层接住；实验 B 就是那个模式的最小版。
+
+**判断题（已亲手验证 ✅）：**
+```python
+try:
+    try:
+        raise ValueError('里层出事')
+    except ValueError:
+        print('里层接住，上报')
+        raise TypeError('中层出事')     # except 里的新异常 → 归外面管
+except TypeError as e:                  # 外层网接住
+    print('外层接住：', e)
+# 实际输出：里层接住，上报 / 外层接住： 中层出事（无 traceback）
+```
+
+**彩蛋**：被接住的异常身上仍挂着隐式链（上面 TypeError 的"直接背景"是 ValueError）——链没消失，只是没人打印它；哪天外层再加一句裸 raise 原样上抛，两段案卷就又出来了。
+
+**③ `ValueError: 里层出事` 这种最后一行，什么时候出现？**
+
+条件只有一条：**它到死都没人接住。** 三个场景：
+
+```python
+# 场景1：压根没有 try（或网接不住它）→ 直接裸抛
+raise ValueError('里层出事')
+# → Traceback … 最后一行：ValueError: 里层出事
+
+# 场景2：被接住过一次，但又原样上抛，最后还是没人接
+try:
+    raise ValueError('里层出事')
+except ValueError:
+    print('接住一次，继续上报')
+    raise                          # 裸 raise = 原样上抛（8.4）
+# → 先打印"接住一次…"→ 然后 traceback，最后一行：ValueError: 里层出事
+#   （被接过，但最终没人"收留"，照样要出场）
+
+# 场景3：它之后又出了新事 → 它变成第一段案卷的结尾
+# （像 8.5 那条链里 FileNotFoundError 出现的位置一样）
+```
+
+对照：嵌套练习里 `ValueError: 里层出事` 永远看不到——里层网当场接住处理完了，它没机会出场。把内层 `except ValueError` 注释掉，它就会一路逃到最外层（外层网是 TypeError 的、不认 ValueError）→ 作为未处理异常出场。
+
+**最后一行格式速查（呼应 8.4 的"纸条"）：**
+
+| 抛出方式 | 最后一行长什么样 |
+|---|---|
+| `raise ValueError('里层出事')` | `ValueError: 里层出事`（话印在后面） |
+| `raise ValueError`（没给话） | 光秃秃一个 `ValueError` |
+| `raise RuntimeError from None` | 光秃秃一个 `RuntimeError` |
+
+"话"纯粹是给人看的，机器只认类型——所以能写中文、能写 `值:1`。
+
+**📌 8.5 补充：`from exc` 逐点问懂（2026-09-10 追问版）**
+
+**① 例子里为什么有个 func()？——不是为了功能，是为了"仿真"**
+```python
+# 扁平写法（去掉函数）也能跑，输出几乎一样，只差"第一段案卷少一层"：
+try:
+    raise ConnectionError
+except ConnectionError as exc:
+    raise RuntimeError('哎哟我去,失败了') from exc
+# 第一段只有一行（raise 那行）
+
+# 带 func() 的版本，第一段是两层：
+#   File "...", line 597, in <module>
+#     func()                        ← 第 1 层：调用点
+#   File "...", line 595, in func
+#     raise ConnectionError         ← 第 2 层：真正的案发现场
+```
+真实世界里错误几乎从来不在 try 手边那一行发生，而是从"你调用的东西"（库/函数）内部冒出：
+```python
+try:
+    data = ak.股票行情('600519')   # ← 你调用 akshare 的那行
+except ConnectionError:
+    ...
+# 出错时第一段是两层：你的调用点 + 库内部现场
+```
+所以 func() 扮演"底层库"，外层 try 扮演"上层业务"——有了这层"底下冒、上面接"的关系，`from exc` 才有意义（底层抛细节、上层包装成人话）。这也正是 8.2 的"traceback = 调用栈快照"：调用了几层，第一段就印几层。
+
+**② `as exc` = 起别名（8.3 就见过：`except OSError as err`）**
+```python
+import numpy as np              # 给模块起别名
+with open('a.txt') as f:        # 给文件对象起别名
+except ConnectionError as exc:  # 给异常实例起别名 —— 同一个 as，都是"起名字"
+```
+- 起名的对象是**实例**（装着"话"和纸条的那个异常对象），起名后能用：`type(e)` / `print(e)`（打印话）/ `e.args`（纸条）
+- 不起名也能接住，但块里引用不到它（只知道"出错了"，拿不到细节）
+- 这里**非起名不可**：下一行 `from exc` 点名要用
+- 小知识：except 块一结束，`exc` 这个名字会被 Python 自动删掉，块外再引用会 NameError
+
+**③ `from` = 盖"因果章"**
+
+一句话：两个异常前后脚发生，Python **自动**知道"时间上挨着"，但不知道"是不是有意的因果"——`from` 就是手动盖章："旧的（exc）是新异常的直接原因"。
+
+```python
+# 实测（两个字段的区别）：
+# 用 from exc 时：
+#   e.__cause__   = ConnectionError('底层细节')   ← 手动盖的章
+#   e.__context__ = ConnectionError('底层细节')   ← 自动录的"当时在干嘛"
+# 用 from None 时：
+#   e.__cause__   = None                          ← 没盖章
+#   e.__context__ = ConnectionError('底层细节')   ← 还在，只是被压住不打印
+```
+
+| | `__context__` | `__cause__` | 中间那行英文 |
+|---|---|---|---|
+| 不写 from | 自动填 | None | During handling... |
+| `from exc` | 自动填 | = 旧异常 | was the direct cause... |
+| `from None` | 自动填(但不露脸) | None | 不显示 |
+
+类比：`__context__` = 监控自动录的"出事时你正在干嘛"；`__cause__` = 你亲手写的事故报告"因为 A，所以 B"。
+
+**④ 有什么用？——给"事后查错的人"留线索**
+
+没有它（只有包装后的结论）：
+```
+RuntimeError: 600519 拉取失败
+# 只知道"失败了"；为什么失败？网络断了？代码错了？代码不存在？数据源改版？——全靠猜
+```
+有了它：
+```
+ConnectionError: [WinError 10054] 远程主机强迫关闭了一个现有的连接   ← 真相在这
+The above exception was the direct cause of the following exception:
+RuntimeError: 600519 拉取失败
+# 一眼：网络断了 → 处理方式完全不同（重试 vs 改代码）
+```
+两条用处：**排查**（表面 + 根源同时留档，不用猜、不用复现）、**分层**（底层说细节、上层说人话，信息还不丢）。
+反向用处：`from None` 压掉"预料之中、不是真问题"的噪音。
+读法：按 8.2 老规矩从下往上——先看最下面的最终错误，再往上找 direct cause，看它上面那段的根源。
+诚实备注：几十行小脚本里价值不明显（出错一眼看得到）；等脚本跑一晚上、代码分三层、只能靠日志排查时，价值才显现（10 月写数据脚本会遇到）。
+
+**⑤ `from None` 实测：一段 vs 两段（亲手跑过）**
+```python
+# 不带 from None（默认状态）→ 两段案卷：
+try:
+    open('database.sqlite')
+except OSError:
+    raise RuntimeError
+# Traceback …
+#   FileNotFoundError: [Errno 2] No such file or directory: 'database.sqlite'
+#
+# During handling of the above exception, another exception occurred:   ← 隐式链（没盖章）
+#
+# Traceback …
+#   RuntimeError
+
+# 带 from None → 只留一段：
+try:
+    open('database.sqlite')
+except OSError:
+    raise RuntimeError from None
+# Traceback … RuntimeError（干干净净，旧案卷没出场）
+```
+**它解决什么问题**：不是所有"上一个异常"都是真问题——有时是你**故意触发**的：
+```python
+# 场景：用 open 探测配置文件在不在
+try:
+    open('config.json')
+except FileNotFoundError:
+    raise RuntimeError('请先创建 config.json 文件') from None
+# 不写 from None → 屏幕上先印一大段 FileNotFoundError，看日志的人以为"文件系统出事"
+# 写了 from None → 只有"请先创建 config.json"，直奔主题
+```
+**机制**：不是删除，是**静音**——`__context__` 里还躺着旧异常，只是不打印（见 ③ 的字段实测）。
+**使用原则**：旧异常是"真问题的根源" → `from exc`（或默认）；旧异常只是"预料之中的挡路石" → `from None` 别让它碍眼。
+
+**一句话记忆卡：**
+> 我能知道"是什么异常导致了什么异常"——类型、原因、现场（哪一行）全都有；自己写代码时带上 `from exc`，就是给将来查错的人（三个月后的自己）留好线索。
+>
+> 四种写法一张图（合上笔记能默画）：默认（两段）/ 加话（两段带话）/ `from exc`（盖章）/ `from None`（静音一段）。
+
+---
+
+### 8.6 用户自定义异常（自己给错误起名字）
+
+**一句话：内置异常不够用时，可以自己定义新的异常类型——就是一个挂在 Exception 家族下的小类，专门代表"我这段代码特有的错误"。（8.3 实验里的 B/C/D 就是它，今天正式正名。）**
+
+**① 官方四句话，逐句翻译**
+```python
+# 原文1："程序可以通过创建新的异常类命名自己的异常"（类的内容详见第 9 章）
+#   → 翻译：class 数据缺失Error(Exception): pass 就是"创建新的异常类"
+#   → 类还没系统学？今天只需照抄模板：括号挂家族 + pass 空壳（8.3 见过）
+
+# 原文2："不论以直接还是间接的方式，异常都应从 Exception 类派生"
+#   → 直接：class A(Exception)；间接：class B(A)（爷是 Exception，B 也算）
+#   → 违反了会怎样？raise 的瞬间报 TypeError（8.4 的"血统"规则，见实验3）
+
+# 原文3："异常类可被定义成能做其他类所能做的任何事，但通常应当保持简单，
+#         它往往只提供一些属性，允许相应的异常处理程序提取有关错误的信息"
+#   → 保持简单的意思：别造复杂怪物，通常 pass 就够；要传信息就加属性（见实验2）
+
+# 原文4："大多数异常命名都以 Error 结尾" + "许多标准模块定义了自己的异常"
+#   → 命名习惯：数据缺失Error、拉取失败Error
+#   → 真实例子（实测）：json.JSONDecodeError、pandas.errors 里一排 *Error
+#     （DataError / DuplicateLabelError / ClosedFileError …）
+```
+
+**② 两种写法：空壳 / 带属性**
+```python
+# 空壳版（最常用）：
+class 数据缺失Error(Exception):
+    pass
+
+# 带属性版（要传信息时）——用到 __init__，第 9 章系统讲，今天照抄模板：
+class 拉取失败Error(Exception):
+    def __init__(self, 代码, 原因):
+        self.代码 = 代码
+        self.原因 = 原因
+# 好处：except 接住后直接读 e.代码 / e.原因，不用去猜字符串内容
+```
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# ── 实验 1：最小自定义异常（8.3 的 B/C/D 正式版）──
+# class 数据缺失Error(Exception):
+#     pass
+# try:
+#     raise 数据缺失Error('2026-08-01 的行情是空的')
+# except 数据缺失Error as e:
+#     print('抓到：', type(e).__name__, '-', e)
+# 预期：抓到： 数据缺失Error - 2026-08-01 的行情是空的
+
+# ── 实验 2：带属性的自定义异常（官方"只提供属性"的用法）──
+# class 拉取失败Error(Exception):
+#     def __init__(self, 代码, 原因):
+#         self.代码 = 代码
+#         self.原因 = 原因
+# try:
+#     raise 拉取失败Error('600519', '网络超时')
+# except 拉取失败Error as e:
+#     print(f'股票 {e.代码} 拉取失败，原因：{e.原因}')
+# 预期：股票 600519 拉取失败，原因：网络超时
+
+# ── 实验 3：没血统的下场（8.4 规则复验）───────────
+# class 野异常:          # ← 故意不挂靠 Exception
+#     pass
+# try:
+#     raise 野异常()
+# except Exception as e:
+#     print('接住了：', type(e).__name__, '-', e)
+# 预期：接住了： TypeError - exceptions must derive from BaseException
+# （raise 发现它没血统，当场换成 TypeError 抛出；这个 TypeError 又被你的网接住了）
+```
+
+**量化相关 💰：**
+```python
+# 自己造异常 = 给自己的数据管道起"业务错误名"：
+#   class 数据缺失Error(Exception)    # 行情表某天是空的
+#   class 数据过期Error(Exception)    # 拉回来的数据是昨天的
+#   class 无法成交Error(Exception)    # 涨跌停导致挂单成交不了
+# 上层看到名字就知道怎么办（重拉/跳过/停机）——错误名字本身就是说明书
+# 附：以后打交道的库全都有自家异常（akshare、requests、pandas），
+#     报错时看到陌生异常名，先想"这是哪个库自己定义的"
+```
+
+---
+
+### 8.7 定义清理操作（finally——无论如何都要收尾）
+
+**一句话：finally 是 try 的可选收尾块，不管出没出错都会执行——用来放"必须做的事"：关文件、断连接、记日志。**
+
+**① 三种结局，finally 都在**
+```python
+# 结局1：try 没出错         → try 走完 → finally
+# 结局2：出错、被 except 接住 → except 走完 → finally → 程序继续
+# 结局3：出错、没被接住      → finally 先执行完 → 异常继续上抛（官方叫"重新触发"）
+# 官方原话：如果存在 finally 子句，则 finally 子句是 try 语句结束前执行的最后一项任务
+# 连 KeyboardInterrupt 这种最蛮横的中断，也得排在 finally 后面：
+try:
+    raise KeyboardInterrupt
+finally:
+    print('Goodbye, world!')
+# 输出：先 Goodbye, world! → 再 traceback
+```
+
+**② 官方 divide 例子：三种输入，一个收尾**
+```python
+def divide(x, y):
+    try:
+        result = x / y
+    except ZeroDivisionError:
+        print('division by zero!')
+    else:
+        print('result is', result)          # 没出错才走（8.3 学过）
+    finally:
+        print('executing finally clause')   # 无论如何都走
+
+divide(2, 1)      # result is 2.0 / executing finally clause
+divide(2, 0)      # division by zero! / executing finally clause
+divide('2', '1')  # executing finally clause → 然后 traceback（TypeError 没人接）
+# 第三个最值得盯：TypeError 谁也接不住，但 finally 照样先跑完，异常才继续上路
+# —— 收尾永远在"上报"之前
+```
+
+**③ 和 return 的两条相遇规则（官方不鼓励，3.14 起编译器会发 SyntaxWarning）**
+```python
+# 规则A：try 里 return → finally 先执行，再走那个 return（实测）
+def 先收尾再返回():
+    try:
+        return 'try 的返回值'
+    finally:
+        print('（finally 先执行了）')
+# 实测输出：（finally 先执行了）→ try 的返回值
+
+# 规则B：finally 里的 return 会"吃掉一切"——返回值、连异常都吃掉（实测）
+def 吃掉异常():
+    try:
+        raise ValueError('本该抛出来')
+    finally:
+        return '我被返回值顶替了'
+print(吃掉异常())     # 我被返回值顶替了 —— 没有 traceback，ValueError 被静默吃掉
+# 官方原话：这可能会引起混淆，因此不鼓励使用
+
+def bool_return():
+    try:
+        return True
+    finally:
+        return False
+bool_return()         # False —— try 的返回值同样被吃掉
+```
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# ── 实验 1：连中断也要先收尾（官方例子）──────────
+# try:
+#     raise KeyboardInterrupt
+# finally:
+#     print('Goodbye, world!')
+# 预期：先打印 Goodbye, world! → 再出现 traceback（收尾完才上报）
+
+# ── 实验 2：divide 三连（三种结局）────────────────
+# def divide(x, y):
+#     try:
+#         result = x / y
+#     except ZeroDivisionError:
+#         print('division by zero!')
+#     else:
+#         print('result is', result)
+#     finally:
+#         print('executing finally clause')
+# divide(2, 1)
+# print('─' * 30)
+# divide(2, 0)
+# print('─' * 30)
+# divide('2', '1')
+# 预期：2.0 版 → 收尾；除零版 → 收尾；字符串版 → 先收尾再 traceback
+
+# ── 实验 3：规则A——try 里 return 前，finally 先跑 ──
+# def 先收尾再返回():
+#     try:
+#         return 'try 的返回值'
+#     finally:
+#         print('（finally 先执行了）')
+# print(先收尾再返回())
+# 预期：（finally 先执行了）→ try 的返回值
+
+# ── 实验 4：规则B——finally 的 return 吃掉异常（重点）──
+# def 吃掉异常():
+#     try:
+#         raise ValueError('本该抛出来')
+#     finally:
+#         return '我被返回值顶替了'
+# print(吃掉异常())
+# 预期：我被返回值顶替了（无 traceback —— 异常被静默吃掉，最阴险的写法）
+```
+
+**量化相关 💰：**
+```python
+# finally 在量化代码里负责"无论成败都要做"的事：
+#   try:
+#       data = 拉取('600519')
+#   finally:
+#       记录日志('本次拉取结束')          # 成功要记、失败也要记
+# 更典型的：跑批任务收尾——数据库连接关掉、临时文件删掉、进度写回磁盘，
+# 保证中途出事也不留"半开的资源"（回测跑一晚上，早上发现文件句柄泄漏）
+# 下一节 8.8 的 with，就是"预定义好的 finally"，连手写都省了
+```
+
+---
+
+### 8.8 预定义的清理操作（with——对象自己知道怎么收尾）
+
+**一句话：有些对象天生自带"收尾动作"，用 `with` 打开它，不管中间成没成功，收尾都会被执行。**
+
+① **什么叫"预定义的清理操作"** —— 某些对象在**自己的定义里**就写好了"我该收尾时做什么"：
+- 文件对象 → 关闭文件
+- 数据库连接 → 断开连接
+- 网络连接 → 关掉 socket
+- 锁 → 释放锁
+
+你只要说"用 with 打开它"，收尾它自己办 —— 所以叫**预定义**的（不是现写的，是对象自带的）。
+
+② **不用 with 的问题** —— 官方那个例子：
+```python
+# for line in open("myfile.txt"):
+#     print(line, end="")
+```
+代码写完了，文件**还开着**。多久关？"在一段不确定的时间内" —— 靠垃圾回收顺手关。小脚本没事（程序马上就结束了），但大程序里文件句柄泄漏会要命（打开太多 → `Too many open files`）。
+
+③ **with 写法**：
+```python
+# with open("myfile.txt") as f:
+#     for line in f:
+#         print(line, end="")
+```
+- 块结束就关，**哪怕块里报错也照关**
+- `as f` 的 f 就是文件对象（和 8.5 的 `as exc` 是同一个 as：起别名）
+
+④ **with 和 8.7 的 finally 什么关系？—— 展开给你看**
+```python
+# with open("myfile.txt") as f:      ←── 这两行
+#     for line in f:                     等价于下面这一整段
+#         print(line, end="")
+#
+# f = open("myfile.txt")
+# try:
+#     for line in f:
+#         print(line, end="")
+# finally:
+#     f.close()                       ←── "预定义"就是这一句：对象自己带着
+```
+**finally 是你手写收尾；with 是对象把收尾替你写好了。**
+
+⑤ **一个精确的细节（实测）**：`with ... as f` 的 f，块结束后**名字还在**，只是 `f.closed` 变成了 `True`。
+> 对比 8.5 学的：`except ... as e` 的 e，结束后名字被**删掉**（再访问是 `NameError`）。同样一个 as，两处规矩不一样。
+
+⑥ **怎么知道一个对象支不支持 with？** 官方最后一句：**文档里会指出**。以后用新库就翻文档看有没有提。
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# 先造一个测试文件
+with open('测试文件.txt', 'w', encoding='utf-8') as f:
+    f.write('第一行\n第二行\n第三行\n')
+
+# ── 实验 1：不用 with —— 代码写完，文件还开着 ──
+f2 = open('测试文件.txt', encoding='utf-8')
+print('读完文件后 f2.closed =', f2.closed)
+# 预期：False —— 它什么时候关？没人知道（靠垃圾回收）
+
+# ── 实验 2：用 with ──
+with open('测试文件.txt', encoding='utf-8') as f3:
+    print('with 块内读到:', f3.read().strip().replace('\n', ' / '))
+print('with 块结束后 f3.closed =', f3.closed)
+# 预期：读完三行；然后 True（名字还在，但已经关了）
+
+# ── 实验 3：with 块里出事（重点）──
+try:
+    with open('测试文件.txt', encoding='utf-8') as f4:
+        raise ValueError('块里出事了')
+except ValueError as e:
+    print('接住了:', e)
+print('出事后 f4.closed =', f4.closed)
+# 预期：True —— 关文件是"无论如何都执行"的（又是 8.7 那句"先还债再报丧"）
+```
+
+**量化相关 💰：**
+```python
+# with 是读数据时的"安全带"——批量读几百个 CSV，不用 with 迟早撞上句柄上限：
+#   for code in 股票列表:
+#       with open(f'{code}.csv', encoding='utf-8') as f:
+#           数据 = 读进来(f)
+#   万一某个文件编码坏了、中途报错 → 这个文件照样被关，循环继续（配合 8.9 的收集式上报）
+# 后续会天天见面的用法：
+#   with sqlite3.connect('行情.db') as conn:      # 数据库连接自动断
+#   with pd.ExcelWriter('报告.xlsx') as writer:   # 写 Excel，自动保存关闭
+# 一次管多个：
+#   with open('a.csv') as f1, open('b.csv') as f2:
+```
+
+### 8.9 引发和处理多个不相关的异常（把一堆错打包成一沓"体检报告"）
+
+**一句话：普通异常是"一出事就停"；异常组（ExceptionGroup）是"挨个跑完，把出错的都记下来，最后一次性汇报"；except\* 则是带星号的网，只挑包裹里自己认得的类型捞走，剩下的继续往上抛。**
+
+① **为什么需要它** —— 跑 100 个测试用例，第 1 个挂了程序就停了，剩下 99 个你根本不知道行不行。真正想要的是**继续跑 + 收集 + 统一上报**。ExceptionGroup 就是为这个场景造的。
+
+② **怎么造**：`raise ExceptionGroup('组名（也是一句话）', [异常实例1, 异常实例2])`
+- 第二个参数是**列表**，里面装的是**异常实例**（`OSError(1)` ✓，`OSError` ✗）
+- 它本身就是一种异常 → 普通 `except Exception` 也能把它整个接住
+- 打印格式特殊：不是一行，而是一棵树（`+ Exception Group Traceback`，用 `+-+- 1 ----` 一格一格分开）
+
+③ **`except*`（读"except star"，带星号的网）—— 本节的重点**
+
+和普通 except 的根本差别：
+
+| | 普通 except | except* |
+|---|---|---|
+| 出手几张网 | **只出手第一张匹配的** | **每张网都过一遍，谁认得谁出手** |
+| 处理范围 | 整个异常 | 只捞走组里属于自己类型的那部分 |
+| 剩下的 | —— | 没人认领的部分**重新打包成新的异常组继续往上抛** |
+
+④ **嵌套异常组**：组里还能再装组（官方例子里 group2 就装在 group1 里），打印出来是"树中树"。
+
+⑤ **注意**：组里必须是**实例**而不是类型 —— 因为实践中都是"先接住、再收集"，接住的时候手上拿到的是实例。
+
+⑥ **最有价值的套路**（官方最后那段）—— 继续跑 + 收集 + 统一上报，就是 pytest 这类测试框架的干法：
+```python
+# excs = []
+# for test in tests:
+#     try:
+#         test.run()
+#     except Exception as e:
+#         excs.append(e)                            # 出错先记下，不中断
+# if excs:
+#     raise ExceptionGroup("Test Failures", excs)   # 全跑完统一报告
+```
+
+⑦ **版本提醒（重要）**：`ExceptionGroup` 和 `except*` 都是 **Python 3.11** 才有的。
+- 本机 Anaconda 是 **3.10.9** → `except*` 在那边是**语法错误**，整份文件都跑不了
+- 本机另装了 **Python 3.11**（`D:\Python311`）→ 终端里敲 `py -3.11 文件名.py` 就能跑
+- ⚠️ 别把本节代码加进 `hello_python.py`（它跑在 3.10 上），要试就单独存一个文件
+
+⑧ **定位**：这节是**了解级** —— 知道有这回事、见到不慌就够，现在不用精通。真用上它是在做并发/批量任务的时候。
+
+**🎯 动手实验（必须用 Python 3.11+ 跑；单独存一个文件，终端 `py -3.11 文件名.py`）：**
+```python
+# ── 实验 1：except* 可以多张网同时出手（和普通 except 的根本差别）──
+try:
+    raise ExceptionGroup('两个错', [ValueError('错A'), TypeError('错B')])
+except* ValueError as e:
+    print('网1（ValueError）出手了')
+except* TypeError as e:
+    print('网2（TypeError）出手了')
+# 预期：两行都打印！普通 except 只会出手第一张，这里两张都出手了
+
+# ── 实验 2：官方嵌套组例子（有网认领 + 有网不认领）──
+def f():
+    raise ExceptionGroup('group1', [
+        OSError(1),
+        SystemError(2),
+        ExceptionGroup('group2', [OSError(3), RecursionError(4)]),
+    ])
+try:
+    f()
+except* OSError as e:
+    print('There were OSErrors')
+except* SystemError as e:
+    print('There were SystemErrors')
+# 预期：先打印两行 There were...，然后剩下的 RecursionError(4) 没人认领，
+#       被自动重新打包抛出来 —— 屏幕上多出一棵树（+ Exception Group Traceback ...）
+```
+
+**量化相关 💰：**
+```python
+# 批量任务的"继续跑 + 收集 + 统一上报"——量化里天天遇到：
+# excs = []
+# for code in ['600519', '000001', '300750', ...]:     # 300 只股票
+#     try:
+#         数据 = 拉取(code)
+#         跑回测(code, 数据)
+#     except Exception as e:
+#         excs.append(e)                                # 这只出问题，记下来，别中断
+# if excs:
+#     raise ExceptionGroup('回测失败清单', excs)         # 全跑完再统一报告
+# 普通写法：第 5 只股票停牌/数据缺失 → 整个脚本崩，前面 4 只白跑
+# 收集式写法：300 只全跑完 → "7 只失败，原因是…"，进度一点不丢
+```
+
+---
+
+## 🎓 第 8 章收官（2026-09-10）：哪些要记牢、哪些先挂账
+
+> 这不是新知识，是一张**回访清单**。8.8 之后吸收不动是正常的 —— 那里已经是 Python 教程的深水区。
+
+| 节 | 内容 | 以后多久见一次 | 状态 |
+|---|---|---|---|
+| 8.1–8.6 | 语法错误 / try-except / raise / 异常链 / 自定义异常 | **天天用** | ✅ 已啃透 |
+| 8.7 | finally（无论如何都要收尾） | 偶尔（常被 with 顶替） | ✅ 记住"先还债再报丧" |
+| **8.8** | **with（预定义清理）** | **天天见** | 📌 **照抄着用，不用懂原理** |
+| 8.9 | ExceptionGroup / except* | 罕见（并发 / 批量任务） | 🅿️ 挂账：见过就行 |
+| 8.10 | add_note（用注释细化异常） | 罕见 | 🅿️ 挂账：先不看 |
+
+**唯一要变成习惯的：** 看到 `open(` 就写 `with` —— 以后读到的每一份 pandas / 文件示例都是这个写法，跟着抄就行。
+
+**什么时候回来翻这几个挂账：**
+- 撞见 `+ Exception Group Traceback` 那棵树，或遇到"一次要报告一堆错"的需求（批量任务 / 测试）→ 回 **8.9**
+- 看到 `add_note` / `__notes__` → 回 **8.10**
+- 手写 `try: ... finally: f.close()` → 换成 **with**（回 8.8）

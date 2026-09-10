@@ -546,13 +546,112 @@
 # raise ValueError(1)
 
 # ── 实验 3：裸 raise——中间层留痕再上交 ─────────────────
-def 内层():
-    raise NameError('HiThere')   # 源头在这
-def 中间层():
-    try:
-        内层()
-    except NameError:
-        print('中间层:记录到日志,然后上交')
-        raise                     # 原样转抛!
-中间层()
+# def 内层():
+#     raise NameError('HiThere')   # 源头在这
+# def 中间层():
+#     try:
+#         内层()
+#     except NameError:
+#         print('中间层:记录到日志,然后上交')
+#         raise                     # 原样转抛!
+# 中间层()
 
+
+# try:
+#     open('database.sqlite')
+# except OSError:
+#     raise RuntimeError('unable to handle error')
+
+# try:
+#     open('database.sqlite')
+# except OSError:
+#     print('第一层：接住了 FileNotFoundError，准备上报')
+#     raise RuntimeError('unable to handle error')
+# except RuntimeError:        # ← 猜：这张网接得住上面上报的吗？
+#     print('第二层：接住了 RuntimeError')
+
+
+# ── 实验 B：上报的异常，被外层接住 —— 这次安静了 ──────────
+# try:
+#     try:
+#         open('database.sqlite')
+#     except OSError:
+#         print('里层：接住了，上报 RuntimeError')
+#         raise RuntimeError('打包成业务错误')
+# except RuntimeError as e:
+#     print('外层接住了：', e)
+#     print('（屏幕上没有一个 traceback —— 因为有人接了）')
+
+# try:
+#     try:
+#         raise ValueError('里层出事')
+#     except ValueError:
+#         print('里层接住，上报')
+#         raise TypeError('中层出事')
+# except TypeError as e:
+#     print('外层接住：', e)
+
+# def func():
+#     raise ConnectionError
+# try:
+#     func()
+# except ConnectionError as exc:
+#     raise RuntimeError('哎哟我去,失败了') from exc
+
+
+# try:
+#     open('database.sqlite')
+# except OSError:
+#     raise RuntimeError from None  
+
+
+
+
+# ── 实验 1：最小自定义异常（8.3 的 B/C/D 正式版）──
+# class 数据缺失Error(Exception):
+#     pass
+# try:
+#     raise 数据缺失Error('2026-08-01 的行情是空的')
+# except 数据缺失Error as e:
+#     print('抓到：', type(e).__name__, '-', e)
+
+# ── 实验 2：带属性的自定义异常（官方"只提供属性"的用法）──
+# class 拉取失败Error(Exception):
+#     def __init__(self, 代码, 原因):
+#         self.代码 = 代码
+#         self.原因 = 原因
+# try:
+#     raise 拉取失败Error('600519', '网络超时')
+# except 拉取失败Error as e:
+#     print(f'股票 {e.代码} 拉取失败，原因：{e.原因}')
+
+# ── 实验 3：没血统的下场（8.4 规则复验）───────────
+# class 野异常(Exception):          # ← 故意不挂靠 Exception
+#     pass
+# try:
+#     raise 野异常()
+# except Exception as e:
+#     print('接住了：', type(e).__name__, '-', e)
+# 预期：接住了： TypeError - exceptions must derive from BaseException
+# （raise 发现它没血统，当场换成 TypeError 抛出；这个 TypeError 又被你的网接住了）
+
+
+#8.7
+# ── 实验 1：连中断也要先收尾（官方例子）──────────
+# try:
+#     raise KeyboardInterrupt
+# finally:
+#     print('Goodbye, world!')
+# 预期：先打印 Goodbye, world! → 再出现 traceback（收尾完才上报）
+
+
+
+
+
+
+def 吃掉异常():
+    try:
+        raise ValueError('本该抛出来')
+    finally:
+        return '我被返回值顶替了'
+print(吃掉异常())
