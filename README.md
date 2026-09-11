@@ -18,14 +18,14 @@
 
 ## 📅 每日打卡
 
-- 每天一篇：`daily/2026-08-29.md`（格式见 [daily/模板.md](daily/模板.md)）
+- 每天一篇：[[2026-08-29]]（格式见 [daily/模板.md](daily/模板.md)）
 - 每天学习结束运行 `push.bat` → 自动提交推送 → GitHub 贡献图多一格绿色
 - 时间戳 = commit 时间，坚持 = 贡献图，学多少 = 日志里的记录
 
 ## 📚 笔记与代码
 
-- `notes/` — 按主题的学习笔记（Markdown，可用 Obsidian 打开本文件夹管理）
-- `code/` — 练习代码与小项目
+- [[notes/README|notes/]] — 按主题的学习笔记（Markdown，可用 Obsidian 打开本文件夹管理）
+- [[code/README|code/]] — 练习代码与小项目
 
 ## ⚙ 一键脚本（Windows）
 

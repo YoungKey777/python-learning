@@ -1807,6 +1807,123 @@ from sound.effects.echo import echofilter  # 函数直接可用：echofilter()
 
 **量化相关 💰：** 性能链条 = 机器码(C) > 字节码+JIT(Java/PyPy) > 纯字节码解释(Python)。量化答案 = "都要"：研究层用 Python 的虚拟机（一天试几百个想法，开发速度即生产力），瓶颈层外包 C（pandas/numpy 底层）。被问"Python 为什么慢怎么解决"答出 VM 逐条翻译 + 动态类型 + JIT/Cython/C 扩展 = 满分。
 
+## 7 输入与输出（把结果送出去）
+
+### 7.1 更复杂的输出格式（打印的四代写法 + str 与 repr）
+
+**一句话：打印东西有四代写法，现在是 f-string 的天下；而本节真正的硬知识是 `str()` 和 `repr()` 的区别 —— 一个给人看，一个给解释器看。**
+
+① **四种"写入值"的方式**（官方开头说的三种 + 格式化）
+- 表达式语句（在 REPL 里直接敲变量名）
+- `print()`
+- **文件对象的 `write()`** —— `sys.stdout` 就是"标准输出"这个文件；也就是说 `print()` 本质上是往文件里写
+- 格式化输出：f-string / `str.format()` / 手写切片拼接
+
+② **f-string（头号推荐，你天天在用）**
+```python
+# year = 2016
+# event = 'Referendum'
+# f'Results of the {year} {event}'
+# → 'Results of the 2016 Referendum'
+```
+- 引号前加 `f`，`{}` 里放变量**或任意表达式**
+- 正式名字：**格式化字符串字面值**
+
+③ **`str.format()`（上一代，读旧代码会见到）**
+```python
+# yes_votes = 42_572_654
+# '{:-9} YES votes  {:2.2%}'.format(yes_votes, percentage)
+# → ' 42572654 YES votes  49.67%'
+```
+- `{}` 是占位符，`.format()` 的参数**按顺序**填进去
+- 花括号里的内容叫**格式规格**（format spec），骨架是 `{:[填充][对齐][符号][宽度][,][.精度][类型]}`
+- 例：`{:-9}` = 宽 9、只给负数加负号、其余补空格；`{:2.2%}` = ×100、留 2 位小数、带 %
+- **自己写用 f-string，但读别人的代码要认得它**（格式规格两代通用：`f'{x:.2%}'`）
+
+④ **`str()` vs `repr()` —— 本节真正的干货**
+
+| | `str()` | `repr()` |
+|---|---|---|
+| 给谁看 | **给人看**（供人阅读） | **给解释器看**（可重建该对象） |
+| 字符串 | `Hello, world.` 不带引号 | `'Hello, world.'` **带引号** |
+| 数字/列表/字典/元组 | 一样 | 一样 |
+| 没实现"供人阅读"版的对象 | 退回用 repr | —— |
+
+**这个区分解答了一个你可能从没问过的问题：为什么在 REPL 里敲字符串会带引号？**
+```python
+# s = 'Hello, world.'
+# >>> s          ← 直接敲变量
+# 'Hello, world.'    ← 带引号！这不是字符串的内容，是 repr() 在告诉你"这是个字符串"
+# >>> print(s)   ← print 用的是 str()
+# Hello, world.      ← 不带引号
+```
+**交互模式显示的是 `repr()`，`print()` 用的是 `str()`。**
+
+⑤ **repr 的实战价值：让"看不见的东西"显形**
+```python
+# hello = 'hello, world\n'
+# print(hello)         → 真的换一行
+# print(repr(hello))   → 'hello, world\n'   ← \n 原样显示成两个字符
+```
+空格、换行、引号这些肉眼看不见的东西，repr 会显形。**调试时 `print(repr(变量))` 比 `print(变量)` 信息量大得多。**
+
+⑥ **`string.Template`** —— 老式 `$x` 占位符，格式控制能力弱，现在基本不用，知道有这东西就行。
+
+⑦ **切片拼接 + `.ljust()/.rjust()/.center()` 填充** —— 现在被 f-string 的格式规格全面取代。
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+```python
+# ── 实验 1：str() vs repr() —— 亲眼对比 ──
+s = 'Hello, world.'
+print('str  →', str(s))
+print('repr →', repr(s))
+print('直接 print 字符串 →', s)
+
+# ── 实验 2：repr 让"看不见的东西"显形（调试利器）──
+hello = 'hello, world\n'
+print('print(hello)  →')        # 真的换一行
+print(hello)
+print('print(repr(hello)) →', repr(hello))   # \n 现形
+带空格的 = '  茅台  '
+print('看不出问题:', 带空格的, '| repr 一览无余:', repr(带空格的))
+
+# ── 实验 3：format 和 f-string 是同一套格式规格，两种写法 ──
+yes_votes = 42_572_654
+total_votes = 85_705_149
+percentage = yes_votes / total_votes
+print('{:-9} YES votes  {:2.2%}'.format(yes_votes, percentage))   # 老写法
+print(f'{yes_votes:-9} YES votes  {percentage:2.2%}')             # 新写法（结果一样）
+
+# ── 实验 4：repr 的参数可以是任何对象 ──
+x = 10 * 3.25
+y = 200 * 200
+print(repr((x, y, ('spam', 'eggs'))))
+```
+
+**🔧 格式规格速查表（数据报告天天用）：**
+```python
+# 千分位       f'{42572654:,}'    → 42,572,654
+# 百分比       f'{0.4967:.2%}'    → 49.67%
+# 带符号百分比  f'{0.0831:+.2%}'   → +8.31%     （涨跌幅正负一目了然）
+# 保留小数     f'{3.14159:.2f}'   → 3.14
+# 科学计数     f'{123456789:.2e}' → 1.23e+08
+# 补零         f'{7:03d}'         → 007
+# 左对齐宽8    f'{"茅台":<8}'      → 茅台______
+# 右对齐宽8    f'{600519:>8}'     → ___600519
+# 居中宽10     f'{"沪深300":^10}'  → __沪深300__
+```
+
+**量化相关 💰：**
+```python
+# 回测报告 / 日志表格全靠格式规格，不然输出没法看：
+# print(f'{"策略":<10}{"年化":>10}{"最大回撤":>12}{"夏普":>8}')
+# print(f'{"双均线":<10}{0.1834:>10.2%}{-0.2215:>12.2%}{1.42:>8.2f}')
+#
+# 调试拉数据时，repr 是标配：
+#   "看起来是数字其实是字符串"、"多了个空格"、"换行符没清掉"
+#   —— print 看不出来，print(repr(x)) 一眼现形
+```
+
 ## 8 错误与异常（报错急救章——量化拉数据每天都要用）
 
 ### 8.1 错误两大族 + 语法错误（编译期拒稿）
@@ -2916,3 +3033,45 @@ except* SystemError as e:
 - 撞见 `+ Exception Group Traceback` 那棵树，或遇到"一次要报告一堆错"的需求（批量任务 / 测试）→ 回 **8.9**
 - 看到 `add_note` / `__notes__` → 回 **8.10**
 - 手写 `try: ... finally: f.close()` → 换成 **with**（回 8.8）
+
+---
+
+## 🔧 环境备忘（2026-09-11 修）
+
+### 坑 1：matplotlib 画图中文变方块
+
+**症状**：图上中文标题/标签变成一排 `□□□□□`，控制台有警告 `Glyph 33541 missing from font(s) DejaVu Sans`。
+
+**原因**：matplotlib 默认字体是 **DejaVu Sans，它不含汉字**。
+
+**已永久修复**（不用每个脚本再写一遍）—— 配置文件 `C:\Users\27182\.matplotlib\matplotlibrc`：
+```yaml
+font.sans-serif: SimHei, Microsoft YaHei, SimSun, DejaVu Sans
+axes.unicode_minus: False
+```
+- 第一行：按顺序找中文字体，找不到就换下一个
+- 第二行：`SimHei` 里没有数学负号，**不关掉的话 y 轴的负值也会变方块**
+- 想撤销：删掉那个文件即可
+
+**换电脑 / 换环境时怎么办** —— 脚本开头临时加两行：
+```python
+# import matplotlib.pyplot as plt
+# plt.rcParams['font.sans-serif'] = ['SimHei']
+# plt.rcParams['axes.unicode_minus'] = False
+```
+
+### 坑 2：matplotlib 3.7 与 numpy 2.x 不兼容
+
+- **症状**：`import matplotlib` 直接崩 → `ImportError: numpy.core.multiarray failed to import`
+- **原因**：matplotlib 3.7 是 **numpy 1.x 时代**编译的，而本机 numpy 是 2.2.6
+- **修复**：`pip install --upgrade matplotlib` → 3.10.9 ✅
+- **规律**：以后遇到"某个老包一导入就崩"，先看它是不是 numpy 1.x 时代的老版本
+
+### 顺带：开包前全链路体检（2026-09-11 实测通过 ✅）
+
+```
+akshare 拉真实行情 → pandas 整理 → matplotlib 出中文图   ← 全链路跑通
+```
+- numpy 2.2.6 ✅ ／ pandas 2.3.3 ✅ ／ akshare 1.18.88 ✅ ／ matplotlib 3.10.9 ✅
+- 实测样本：`ak.stock_zh_a_hist(symbol="600519", period="daily", adjust="qfq")` 返回 162 行 × 12 列（日期/股票代码/开盘/收盘/最高/最低/成交量/成交额/振幅/涨跌幅/涨跌额/换手率）
+- **周一（9/14）pandas 开箱，环境已经就绪** 🚀
