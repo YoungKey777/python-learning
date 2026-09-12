@@ -696,8 +696,8 @@
 # print(f'{yes_votes:-9} YES votes  {percentage:2.2%}')  
 
 
-bugs = 'roaches'
-count = 13
-print('② 自说明   :', f'{bugs=} {count=}')
-print('② 自说明   :', f'{bugs} {count}')
-print('   等价写法:', f'bugs={bugs!r} count={count!r}')
+# bugs = 'roaches'
+# count = 13
+# print('② 自说明   :', f'{bugs=} {count=}')
+# print('② 自说明   :', f'{bugs} {count}')
+# print('   等价写法:', f'bugs={bugs!r} count={count!r}')
