@@ -3110,6 +3110,301 @@ with open('碳价_湖北_20260912.csv', 'w', encoding='utf-8') as f:
 
 ---
 
+### 7.2.1 文件对象的方法（读有四种读法，写只有一种）
+
+**一句话：7.2 讲的是"怎么把书取下来"，这节讲"取下来之后怎么翻"。核心就三块 —— 读（四种读法）、写（一种）、以及一对管"我看到哪了"的 `tell`/`seek`。**
+
+> **先建立一个关键画面：文件对象里有一个"光标"。**
+> 就像打字机上那个位置指针 —— **所有读写都从光标当前的地方开始，做完之后光标自动往前走。**
+> 记住这个画面，这节所有的怪现象都能解释。
+
+---
+
+**① 四种读法（本节主干）**
+
+| 方法 | 返回什么 | 什么时候用 |
+|---|---|---|
+| `f.read()` | **一整个字符串** | 文件不大，要全文一起处理 |
+| `f.read(n)` | **最多 n 个字符** | 大文件，分块读 |
+| `f.readline()` | **一行**（带 `\n`） | 一行一行处理，手动控制节奏 |
+| **`for line in f:`** | 每次循环给一行 | ⭐ **官方推荐** —— 省内存、快、代码短 |
+| `f.readlines()` / `list(f)` | **所有行组成的列表** | 真的需要列表时才用 |
+
+```python
+# 写法一：全读出来
+with open('w.txt', encoding='utf-8') as f:
+    print(f.read())
+    # → 'This is the first line of the file.\nSecond line of the file\n'
+
+# 写法二：只读 5 个字符，再读 5 个 —— 光标会接着上次的位置
+with open('w.txt', encoding='utf-8') as f:
+    f.read(5)      # → 'This '
+    f.read(5)      # → 'is th'    ← 不是从头再来！
+```
+
+⚠️ **光标走到末尾之后再读，返回空字符串**（不报错）：
+
+```python
+with open('w.txt', encoding='utf-8') as f:
+    f.read()       # → 全文
+    f.read()       # → ''        ← 到末尾了
+```
+
+> **这就是"光标"画面在起作用** —— 第一次 `read()` 从头读到尾，光标停在末尾；第二次当然什么都没有。
+> **空字符串 `''` 就是"读到头了"的信号**（不是报错，也不是 `None`）。
+
+```python
+# 写法三：readline() —— 一次一行（官方的三个例子）
+with open('w.txt', encoding='utf-8') as f:
+    f.readline()   # → 'This is the first line of the file.\n'
+    f.readline()   # → 'Second line of the file\n'
+    f.readline()   # → ''      ← 到末尾
+```
+
+⚠️ **行尾的 `\n` 是保留的！** 官方特意解释了为什么：**"这种方式让返回值清晰明确"** —— 你拿到 `''` 就一定是到头了；而空行会返回 `'\n'`（一个只含换行符的字符串），两者分得清清楚楚。
+
+```python
+# 写法四：for line in f（官方推荐）
+with open('w.txt', encoding='utf-8') as f:
+    for line in f:
+        print(line, end='')     # ← 注意这个 end=''
+```
+
+**为什么推荐这种？** 官方原话：**"能高效利用内存，快速，且代码简单。"**
+`f.read()` 和 `f.readlines()` 都是**一次把整个文件塞进内存** —— 官方警告：**"文件大小是内存的两倍时，会出现问题"**。而 `for line in f` 是**一次只拿一行**，多大的文件都不怕。
+
+---
+
+**② `end=''` 到底在挡什么？（回指 7.1）**
+
+这是新手必踩的坑，官方例子里那个 `end=''` 不是随便写的：
+
+```python
+# 不写 end='' 的结果（用 | 当边界尺看清楚）
+with open('w.txt', encoding='utf-8') as f:
+    for line in f:
+        print(line, end='|\n')
+# 输出：
+# This is the first line of the file.
+# |
+# Second line of the file
+# |
+```
+
+**看明白了吗** —— 每行打印完之后**多了一个空行**。因为：
+
+```
+文件里的那一行        'This is the first line of the file.\n'
+                        └─ 自带一个 \n（readline 保留的）
+print 又自动补一个 \n    └─ 7.1 学的"print 三个自动"之一
+                      = \n\n  →  一个空行
+```
+
+**`end=''` 就是"把 print 那个自动换行删掉"** —— 让文件自带的 `\n` 独自完成换行工作。**两个 `\n` 撞一起 = 空行**，这个规律在 7.1 那一节就学过（`repr` 版没有空行，就是因为 `\n` 被转成了两个可见字符）。
+
+```python
+# 写法五：一次读成列表
+with open('w.txt', encoding='utf-8') as f:
+    list(f)          # → ['This is the first line of the file.\n', 'Second line of the file\n']
+with open('w.txt', encoding='utf-8') as f:
+    f.readlines()    # → 完全一样
+```
+
+> ⚠️ **列表里的每个元素末尾也带着 `\n`** —— 想干净的数据得自己 `line.strip()`。
+
+---
+
+**③ `f.write()` 的两条规矩**
+
+```python
+# 规矩 1：它【返回写入的字符数】
+with open('o.txt', 'w', encoding='utf-8') as f:
+    n = f.write('This is a test\n')
+    # n → 15        ← 正好是 len('This is a test\n')
+```
+
+**这个返回值有什么用？** 可以拿来做"**写完整了吗**"的检查（一般用不上，但知道它返回什么，就不会看到返回值发懵）。
+
+```python
+# 规矩 2：它只吃【字符串】—— 写别的类型直接报错
+with open('o2.txt', 'w', encoding='utf-8') as f:
+    f.write(123)
+    # TypeError: write() argument must be str, not int
+```
+
+**那想写数字/元组/列表怎么办？自己先转字符串：**
+
+```python
+value = ('the answer', 42)
+s = str(value)          # → "('the answer', 42)"
+f.write(s)              # → 18   （返回写入了 18 个字符）
+```
+
+> 🔗 **回指 7.1**：这就是为什么 `print()` 那么方便 —— **print 会自动帮你调 `str()`，而 `write()` 不会。** 7.1 学的"print 三个自动"里的第一个，就是这个"转字符串"。
+
+---
+
+**④ `tell()` 和 `seek()` —— 直接操作那个"光标"**
+
+| 方法 | 干什么 | 比喻 |
+|---|---|---|
+| `f.tell()` | 报告光标现在在哪（从文件开头数） | "我看到第几个字节了？" |
+| `f.seek(位置, 参考点)` | 把光标挪到指定位置 | "我要跳到这儿" |
+
+**`seek` 的第二个参数 `whence`（参考点）有三个值：**
+
+| whence | 参考点 | 意思 |
+|---|---|---|
+| `0` | 文件**开头** | 从头部数（**默认值，可省略**） |
+| `1` | **当前位置** | 从我现在站的地方数 |
+| `2` | 文件**末尾** | 从尾巴往回数（通常用负数） |
+
+```python
+# 官方那个二进制例子，逐行拆解
+f = open('bin.dat', 'rb+')
+f.write(b'0123456789abcdef')     # 16 个字节
+#            ↑ 位置从 0 开始数：0='0', 1='1', 2='2', ... 5='5', ... 13='d'
+
+f.seek(5)          # 跳到位置 5
+f.tell()           # → 5
+f.read(1)          # → b'5'      ← 位置 5 上是字符 '5'（第 6 个字节）
+
+f.seek(-3, 2)      # 从【末尾】往回数 3 个
+f.tell()           # → 13
+f.read(1)          # → b'd'
+```
+
+**`seek(5)` 是"第 6 个字节"，不是第 5 个** —— 因为**位置是从 0 开始数的**（和列表索引一个道理，回指第 3 章的切片）。
+
+**`seek(-3, 2)` 读作**：参考点是"文件末尾"(2)，偏移 -3 → **倒数第 3 个字节**。
+
+---
+
+**⑤ 文本模式下的 `seek` 限制（官方特别警告）**
+
+> 官方原话：**"在文本文件中，只允许相对于文件开头搜索（`seek(0, 2)` 搜索到文件末尾是个例外），唯一有效的 offset 值是能从 `f.tell()` 中返回的，或 `0`。其他 offset 值都会产生未定义的行为。"**
+
+翻译成大白话：
+
+```python
+# ✅ 允许：跳到开头
+f.seek(0)
+
+# ✅ 允许：跳到末尾（这是个特例）
+f.seek(0, 2)
+
+# ✅ 允许：跳回"刚才 tell() 告诉过你的那个位置"
+pos = f.tell()
+f.read(10)
+f.seek(pos)        # 回到刚才的位置 —— 这个一定安全
+
+# ❌ 危险：随便乱跳
+f.seek(1)          # ← 实测【不报错】，但你不知道会读到什么
+```
+
+**为什么？** 因为**文本模式下 `tell()` 返回的那个数字"意义不明"**（官方原话）。原因你也知道 —— **文本模式会偷偷做 `\n` ↔ `\r\n` 的转换**（7.2 学的），**一个"字符"在硬盘上可能是 1 个字节也可能是 2 个**，所以"第几个字节"和"第几个字符"对不上号。
+
+> 🎯 **实践结论：文本文件就老老实实按行读（`for line in f`），别去玩 `seek`。**
+> 真要随机跳着读 → 用二进制模式 `'rb'`，那里"字节"就是"字节"，规矩清楚。
+
+---
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+
+> 📁 同样会在脚本所在文件夹创建 `demo_lines.txt` 和 `demo_bin.dat`，跑完可删。
+
+```python
+# ── 准备一个测试文件 ──
+with open('demo_lines.txt', 'w', encoding='utf-8') as f:
+    f.write('This is the first line of the file.\nSecond line of the file\n')
+
+# ── 实验 1：read() 的"光标"行为 —— 为什么第二次读是空的 ──
+with open('demo_lines.txt', encoding='utf-8') as f:
+    print('第一次 read() ->', repr(f.read()))
+    print('第二次 read() ->', repr(f.read()), '  ← 光标已在末尾')
+print()
+
+# ── 实验 2：read(5) 接着读，不是从头再来 ──
+with open('demo_lines.txt', encoding='utf-8') as f:
+    print('read(5) ->', repr(f.read(5)))
+    print('read(5) ->', repr(f.read(5)), '  ← 接着上次的光标')
+print()
+
+# ── 实验 3：readline() 三次（官方的例子）──
+with open('demo_lines.txt', encoding='utf-8') as f:
+    print(repr(f.readline()))
+    print(repr(f.readline()))
+    print(repr(f.readline()), '  ← 空字符串 = 读到头了')
+print()
+
+# ── 实验 4：for line in f —— 亲眼看那个"双 \n 空行"是怎么来的 ──
+print('不写 end="" 的效果（| 是边界尺）：')
+with open('demo_lines.txt', encoding='utf-8') as f:
+    for line in f:
+        print(line, end='|\n')
+print('写 end="" 的效果：')
+with open('demo_lines.txt', encoding='utf-8') as f:
+    for line in f:
+        print(line, end='')
+print()
+
+# ── 实验 5：readlines() 和 list(f) 一模一样 ──
+with open('demo_lines.txt', encoding='utf-8') as f:
+    print('readlines() ->', f.readlines())
+with open('demo_lines.txt', encoding='utf-8') as f:
+    print('list(f)     ->', list(f))
+print()
+
+# ── 实验 6：write() 返回字符数 + 只吃字符串 ──
+with open('demo_out.txt', 'w', encoding='utf-8') as f:
+    print('write 返回 ->', f.write('This is a test\n'))
+with open('demo_out.txt', 'w', encoding='utf-8') as f:
+    try:
+        f.write(123)
+    except TypeError as e:
+        print('write(123) ->', e)
+print()
+
+# ── 实验 7：tell / seek（官方那个二进制例子）──
+with open('demo_bin.dat', 'wb+') as f:
+    f.write(b'0123456789abcdef')
+    f.seek(5)
+    print('seek(5) 之后 tell() =', f.tell(), ' read(1) ->', f.read(1))
+    f.seek(-3, 2)
+    print('seek(-3, 2) 之后 tell() =', f.tell(), ' read(1) ->', f.read(1))
+```
+
+**量化相关 💰：**
+
+```python
+# 这一节在量化里最常用的是【哪一种读法】？—— 答案很明确：
+
+# 1) 读 CSV 行情 → 直接上 pandas，不用自己读
+#    df = pd.read_csv('行情.csv', encoding='utf-8')
+#    ↑ pandas 内部就是这套东西，但它还帮你处理了表头、类型、缺失值
+
+# 2) 但【大文件】pandas 也会吃掉大量内存 —— 这时候逐行读是正道
+#    回指碳价那条线：接口会烂，数据要自己留底
+#    一份 10 年日频数据不大，但如果是 tick 级（逐笔）数据，几个 GB 很正常：
+with open('逐笔成交.csv', encoding='utf-8') as f:
+    header = f.readline()            # 先单独拿走表头
+    for line in f:                   # 剩下的逐行处理 —— 内存永远只占一行
+        code, price, vol = line.strip().split(',')
+        # ... 处理这一条 ...
+
+# 3) 想随机跳到文件中间某处 → 必须用二进制模式 'rb'
+#    文本模式下 seek 是"未定义行为"，别拿自己的数据赌
+
+# ─────────────────────────────────────────────
+# 四种读法的选择口诀：
+#   文件不大、要全文 → f.read()
+#   大文件、逐行处理 → for line in f     ← 默认选这个，错不了
+#   要列表          → f.readlines()
+#   要精确控制节奏   → f.readline()
+```
+
+---
+
 ## 8 错误与异常（报错急救章——量化拉数据每天都要用）
 
 ### 8.1 错误两大族 + 语法错误（编译期拒稿）
