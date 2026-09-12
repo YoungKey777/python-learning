@@ -719,8 +719,18 @@
 #     print(repr(f.read(5)))
 #     print(repr(f.read(5)))
 
-f = open('demo.txt', 'rb+')
-f.write(b'8743456789abcdef')     # 16 个字节
-print(f.seek(0))          # 跳到位置 5
-print(f.tell())           # → 5
-print(f.read(1))          # → b'5'      ← 位置 5 上是字符 '5'（第 6 个字节）
+# f = open('demo.txt', 'rb+')
+# f.write(b'8743456789abcdef')     # 16 个字节
+# print(f.seek(0))          # 跳到位置 5
+# print(f.tell())           # → 5
+# print(f.read(1))          # → b'5'      ← 位置 5 上是字符 '5'（第 6 个字节）
+
+import json
+x = [1, 'simple', 'list']
+# with open('demo.json','w',encoding='utf-8') as f:
+#     json.dump(x,f)  
+
+with open('demo.json', encoding='utf-8') as f:
+    data = json.load(f)
+
+    print(data)
