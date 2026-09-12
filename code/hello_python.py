@@ -701,3 +701,5 @@
 # print('② 自说明   :', f'{bugs=} {count=}')
 # print('② 自说明   :', f'{bugs} {count}')
 # print('   等价写法:', f'bugs={bugs!r} count={count!r}')
+
+# print(repr('3.14'.zfill(5)))
