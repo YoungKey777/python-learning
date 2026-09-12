@@ -2779,6 +2779,282 @@ logging.info('第 %d 期调仓，买入 %s，权重 %.1f%%', i, code, w * 100)
 
 ---
 
+### 7.2 读写文件（`open` = 借书，`close` = 还书，`with` = 自动还）
+
+**一句话：文件操作就三步 —— 打开（`open`）→ 读或写 → 关闭。** `with` 帮你自动完成第三步。**这一节是周一 pandas 开箱前的最后一关** —— `pd.read_csv()` 底下干的就是这些事，只是它把三步全包了。
+
+> **借书比喻**：
+> - `open()` = 从书架上把书取下来，摊在你桌上
+> - `mode` = 你打算怎么用它（**只翻看** / **撕了重抄一本** / **在后面接着写**）
+> - `f.close()` = 把书放回书架
+> - `with` = **带自动收纳的桌子** —— 你人一走它自己收
+> - 忘了还 = 书一直占着桌子 → 桌子只有那么大，占满了就 `Too many open files`
+
+---
+
+**① `open()` 的三个参数**
+
+```python
+f = open('workfile', 'w', encoding='utf-8')
+#        └───┬──┘  └┬┘  └─────┬─────┘
+#          文件名   模式      编码
+```
+
+| 位置 | 参数 | 说明 |
+|---|---|---|
+| 第 1 个 | `filename` | 文件名字符串（相对路径 / 绝对路径都行） |
+| 第 2 个 | `mode` | 怎么用这个文件。**可以省略，默认是 `'r'`（只读）** |
+| 关键字 | `encoding` | 用什么编码。**强烈建议一律写 `encoding='utf-8'`**（理由见 ③） |
+
+---
+
+**② 四种模式（官方就这四个）**
+
+| 模式 | 名字 | 干什么 | 危险程度 |
+|---|---|---|---|
+| `'r'` | read | **只能读** | 文件不存在 → `FileNotFoundError` |
+| `'w'` | write | **只能写，会覆盖！** | ⚠️ 同名文件的**旧内容全没了** |
+| `'a'` | append | 打开并**在末尾追加** | 原来的内容**保留** |
+| `'r+'` | read + write | 打开后**又能读又能写** | 改文件要小心 |
+
+```python
+with open('a.txt', 'w', encoding='utf-8') as f:
+    f.write('第一行\n第二行\n')
+
+with open('a.txt', 'a', encoding='utf-8') as f:
+    f.write('第三行\n')
+# 现在文件里是：第一行 / 第二行 / 第三行   ← 'a' 没动老内容
+
+with open('a.txt', 'w', encoding='utf-8') as f:
+    f.write('全没了\n')
+# 现在文件里只剩：全没了   ← 'w' 一开就把老内容清空了
+```
+
+> ⚠️ **`'w'` 是本节最危险的字符。** 它**一打开文件就清空**（不是等你写的时候才清）—— 想读旧内容再改，千万别用 `'w'`。这一条以后会救你一次数据。
+
+---
+
+**③ 编码：一律写 `encoding='utf-8'`（中文 Windows 必踩的坑）**
+
+**先看你本机的实际情况**（实测）：
+
+```
+locale.getpreferredencoding()  →  cp936        ← 你的 Windows 默认用 GBK
+sys.getdefaultencoding()       →  utf-8        ← 这个是 Python 内部用的，跟文件无关
+```
+
+**意思是：如果你不写 `encoding`，Python 就用 `cp936`（GBK）去存你的文件。** 一写中文就出事：
+
+```python
+# 不写 encoding（本机实测）
+with open('gbk.txt', 'w') as f:
+    f.write('贵州茅台\n')
+# 存进去的字节: b'\xb9\xf3\xd6\xdd\xc3\xa9\xcc\xa8\r\n'    ← 10 字节，GBK
+
+# 写了 encoding='utf-8'
+with open('utf8.txt', 'w', encoding='utf-8') as f:
+    f.write('贵州茅台\n')
+# 存进去的字节: b'\xe8\xb4\xb5\xe5\xb7\x9e\xe8\x8c\x85\xe5\x8f\xb0\r\n'  ← 14 字节，UTF-8
+```
+
+**同样四个汉字，字节完全不同。** 然后用 utf-8 去读那个 GBK 文件：
+
+```python
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xb9 in position 0: invalid start byte
+```
+
+> 🎯 **记住这条规矩：`open()` 只要碰文本，一律写 `encoding='utf-8'`。**
+> 理由官方说得很直白：**UTF-8 是现代事实上的标准**；不写就等于"看天吃饭"（默认值跟平台有关）—— 你的代码在自己电脑上好好的，发给别人就成乱码。
+> **而且这个错会以"乱码"的形式出现**（`æ±è´µ` 这种鬼东西），不是报错 —— 排查起来更烦。
+
+---
+
+**④ `with` —— 回指 8.8（那节已经把原理讲透了）**
+
+```python
+with open('workfile', encoding='utf-8') as f:
+    read_data = f.read()
+
+f.closed        # → True   ← 出来自动关了
+```
+
+**为什么非用 `with` 不可？** 官方那条警告不是吓唬人，实测给你看：
+
+```python
+f = open('buf.txt', 'w', encoding='utf-8')
+f.write('我写进去了吗\n')
+# 此刻从另一个句柄去读这个文件 →
+# → ''          ← 空的！！一个字都没落盘
+f.close()
+# 现在再读 → '我写进去了吗\n'
+```
+
+**为什么？** 因为 `write()` 只是把内容交给了一个**缓冲区**（一个中转站），它攒够一批才真正写进硬盘。`close()` 才是"把最后这点也推进去"的信号。
+
+| 写法 | 结果 |
+|---|---|
+| 写完不 close | 内容可能**还在缓冲区里，没落盘** |
+| `f.flush()` | 手动推一把，不关也能落盘 |
+| `f.close()` | 推完 + 收工 |
+| **`with`** | **自动帮你做好上面全部，哪怕中途报错** |
+
+> 8.8 学的原话就是：**"块结束就关，哪怕块里报错也照关。"** 现在你知道这句话在真实场景里能救什么了 —— **救数据**。
+
+---
+
+**⑤ 文本模式 vs 二进制模式**
+
+**默认是"文本模式"** —— 你读写的都是**字符串**（`str`）。
+
+**在模式后面加一个 `'b'` 就是二进制模式** —— 读写的变成 **`bytes` 对象**。
+
+```python
+f = open('workfile', 'rb')     # 二进制只读
+```
+
+⚠️ **二进制模式下不能写 `encoding`**：
+
+```python
+open('x.bin', 'rb', encoding='utf-8')
+# ValueError: binary mode doesn't take an encoding argument
+```
+
+> 道理很简单：**编码是"字符串 ↔ 字节"的翻译规则**。二进制模式下你直接拿到的就是字节，**没有东西需要翻译**，所以给了它也不会用。
+
+**为什么会有二进制模式？—— 因为文本模式会偷偷改你的字节：**
+
+```python
+# 文本模式写 'a\nb\n'
+open('t.txt','rb').read()  # → b'a\r\nb\r\n'    ← \n 被偷偷换成了 \r\n！
+
+# 二进制模式写 b'a\nb\n'
+open('b.txt','rb').read()  # → b'a\nb\n'        ← 原样，一个字节不动
+```
+
+**官方解释**：Windows 上的行结束符是 `\r\n`，Unix 上是 `\n`。文本模式**读**的时候会把 `\r\n` 统一成 `\n`、**写**的时候又把 `\n` 换回 `\r\n` —— 让你"感觉不到差别"。
+
+- 对**文本文件**：这个贴心操作没问题 ✅
+- 对 **JPEG / EXE / 图片 / 压缩包**：**会把文件改坏** ❌
+
+> 🎯 **一句话记住：文本模式管的是"行"，二进制模式管的是"字节"。**
+> 读图片、读 Excel、读任何非纯文本 → 一律 `'rb'`。
+
+---
+
+**⑥ 关掉之后再用，会报错**
+
+```python
+f.close()
+f.read()
+# ValueError: I/O operation on closed file.
+```
+
+**这个报错的意思**：书已经放回书架了，你还想接着翻 —— 不行。
+
+---
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+
+> 📁 **注意：这组实验会真的在你电脑上创建文件**（`demo.txt` / `demo_gbk.txt` / `demo_bin.txt` 等），都放在脚本同一个文件夹里，跑完可以随手删掉。
+
+```python
+# ── 实验 1：三种模式的差别 —— 亲眼看见"覆盖"和"追加" ──
+with open('demo.txt', 'w', encoding='utf-8') as f:
+    f.write('第一行\n第二行\n')
+print('刚写完 →', repr(open('demo.txt', encoding='utf-8').read()))
+
+with open('demo.txt', 'a', encoding='utf-8') as f:      # 'a' 追加
+    f.write('第三行\n')
+print("用 'a' 之后 →", repr(open('demo.txt', encoding='utf-8').read()))
+
+with open('demo.txt', 'w', encoding='utf-8') as f:      # 'w' 覆盖
+    f.write('全没了\n')
+print("用 'w' 之后 →", repr(open('demo.txt', encoding='utf-8').read()))
+print()
+
+# ── 实验 2：with 自动关 + 关了再用会报错 ──
+with open('demo.txt', encoding='utf-8') as f:
+    print('with 里面 f.closed =', f.closed)
+print('with 外面 f.closed =', f.closed)
+try:
+    f.read()
+except ValueError as e:
+    print('关了再用 →', type(e).__name__, ':', e)
+print()
+
+# ── 实验 3：编码坑 —— 不写 encoding 的后果（本机默认 cp936）──
+import locale
+print('本机默认编码：', locale.getpreferredencoding(False))
+
+with open('demo_gbk.txt', 'w') as f:                     # 故意不写 encoding
+    f.write('贵州茅台\n')
+with open('demo_gbk.txt', 'rb') as f:
+    print('不写 encoding 的字节：', f.read())
+
+with open('demo_utf8.txt', 'w', encoding='utf-8') as f:
+    f.write('贵州茅台\n')
+with open('demo_utf8.txt', 'rb') as f:
+    print('写了 utf-8 的字节  ：', f.read())
+
+try:
+    open('demo_gbk.txt', encoding='utf-8').read()
+except UnicodeDecodeError as e:
+    print('拿 utf-8 去读 GBK 文件 →', type(e).__name__, ':', e)
+print()
+
+# ── 实验 4：文本模式 vs 二进制模式（行结束符被偷改）──
+with open('demo_t.txt', 'w', encoding='utf-8') as f:
+    f.write('a\nb\n')
+with open('demo_b.txt', 'wb') as f:
+    f.write(b'a\nb\n')
+print('文本模式写的字节：', open('demo_t.txt', 'rb').read())
+print('二进制模式写的字节：', open('demo_b.txt', 'rb').read())
+print('↑ 文本模式在 Windows 上把 \\n 偷偷换成了 \\r\\n')
+
+with open('demo_b.txt', 'rb') as f:
+    data = f.read()
+print('二进制读出来是 bytes：', type(data).__name__, data)
+print()
+
+# ── 实验 5：不 close 的后果 —— 内容还在缓冲区里 ──
+f = open('demo_buf.txt', 'w', encoding='utf-8')
+f.write('我落盘了吗\n')
+print('不 close 直接读 →', repr(open('demo_buf.txt', encoding='utf-8').read()), ' ← 空的！')
+f.close()
+print('close 之后再读 →', repr(open('demo_buf.txt', encoding='utf-8').read()))
+```
+
+**量化相关 💰：**
+
+```python
+# 这一节为什么是周一 pandas 的"最后一关"？
+# 因为 pandas 的 read_csv() 里藏着的就是这几个参数：
+
+import pandas as pd
+df = pd.read_csv('行情.csv', encoding='utf-8')     # ← 就是 open() 的 encoding
+#                       ↑ 文件名        ↑ 编码
+
+# 也就是说：周一你只要会 open()，read_csv() 就是"少写一半的版本"
+
+# 三条会直接用在量化上的：
+
+# 1) 存数据先存 CSV（回指碳价那条线：接口会烂，数据要自己留底）
+with open('碳价_湖北_20260912.csv', 'w', encoding='utf-8') as f:
+    f.write('日期,收盘价\n')            # 之后换成 df.to_csv()
+
+# 2) 【血泪教训】一定要写 encoding='utf-8'
+#    不写的话，中文列名在别人电脑上打开就是乱码 —— 而且不报错，你发现不了
+
+# 3) 写文件用 'w' 之前，先想一秒："这个文件里有我要的东西吗？"
+#    'w' 一打开就清空 —— 跑一次回测把上次的结果覆盖掉，是新手经典事故
+
+# ─────────────────────────────────────────────
+# 一句话总结这一节：
+#   open(文件名, 模式, encoding='utf-8') + with  →  记住这个组合就够用 90%
+```
+
+---
+
 ## 8 错误与异常（报错急救章——量化拉数据每天都要用）
 
 ### 8.1 错误两大族 + 语法错误（编译期拒稿）
