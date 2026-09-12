@@ -710,6 +710,11 @@
 # print('刚写完 →', repr(open('demo.txt', encoding='utf-8').read()))
 
 
-with open('demo.txt', 'a', encoding='utf-8') as f:      # 'a' 追加
-    f.write('第三行\n')
-print("用 'a' 之后 →", repr(open('demo.txt', encoding='utf-8').read()))
+# with open('demo.txt', 'a', encoding='utf-8') as f:      # 'a' 追加
+#     f.write('第三行\n')
+# print("用 'a' 之后 →", repr(open('demo.txt', encoding='utf-8').read()))
+
+
+with open('demo.txt', encoding='utf-8') as f:
+    print(f.read(5))
+    print(f.read(5))
