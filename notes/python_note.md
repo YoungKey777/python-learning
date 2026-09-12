@@ -2832,6 +2832,33 @@ with open('a.txt', 'w', encoding='utf-8') as f:
 
 > ⚠️ **`'w'` 是本节最危险的字符。** 它**一打开文件就清空**（不是等你写的时候才清）—— 想读旧内容再改，千万别用 `'w'`。这一条以后会救你一次数据。
 
+🔬 **补一条官方没说的：文件不存在时会怎样？（这里最容易误判）**
+
+| 模式 | 文件**不存在**时 | 文件**已存在**时 |
+|---|---|---|
+| `'r'` | ❌ `FileNotFoundError` | 读 |
+| `'w'` | ✅ **创建** | ⚠️ **清空** + 写 |
+| `'a'` | ✅ **创建** | ✅ **追加，老内容一个字不动** |
+
+**关键**：`'a'` 和 `'w'` 的区别，**只有"文件已存在"这一列才显现**。文件不存在时，它俩行为**一模一样** —— 都是"建个空文件然后写"。
+
+**所以会有这种误判**：文件不存在时跑 `'a'`，结果里面只有刚写的那一行 —— 看起来**像被清空了**，其实是**从来没存在过**。
+
+```python
+# 实测：这两种情况的输出长得一模一样
+# 情况一（'w' 清空了老文件）  → '第三行\n'
+# 情况二（'a' 新建了文件）    → '第三行\n'
+# 光看内容分不出来！
+```
+
+**怎么分辨？看时间戳：**
+
+- **创建时间 == 修改时间** → 文件是**新建**的（情况二，`'a'` 干的）
+- **创建时间 < 修改时间** → 是**老文件被改了**（情况一，`'w'` 干的）
+
+> Windows 命令行：`dir /TC 文件名` 可以看创建时间。
+> 或者记住更简单的一条：**`'a'` 从来没有清空文件的能力** —— 它只会"建"或者"往后加"，永远不会"擦"。
+
 ---
 
 **③ 编码：一律写 `encoding='utf-8'`（中文 Windows 必踩的坑）**
@@ -2970,6 +2997,34 @@ print("用 'a' 之后 →", repr(open('demo.txt', encoding='utf-8').read()))
 with open('demo.txt', 'w', encoding='utf-8') as f:      # 'w' 覆盖
     f.write('全没了\n')
 print("用 'w' 之后 →", repr(open('demo.txt', encoding='utf-8').read()))
+print()
+
+# ── 实验 1·续：文件【不存在】时，r / w / a 各自干什么 ──
+import os
+
+def 看看(tag):
+    if os.path.exists('demo2.txt'):
+        print(f'   {tag:16} ->', repr(open('demo2.txt', encoding='utf-8').read()))
+    else:
+        print(f'   {tag:16} -> <文件不存在>')
+
+if os.path.exists('demo2.txt'):
+    os.remove('demo2.txt')
+
+try:
+    open('demo2.txt', 'r', encoding='utf-8')       # 'r' 遇见不存在的文件
+except FileNotFoundError as e:
+    print('   "r" 遇见不存在的文件 -> FileNotFoundError')
+
+with open('demo2.txt', 'a', encoding='utf-8') as f:   # 'a' 会【创建】它
+    f.write('第三行\n')
+看看("用 a 之后")
+
+os.remove('demo2.txt')
+with open('demo2.txt', 'w', encoding='utf-8') as f:   # 'w' 也会【创建】它
+    f.write('第三行\n')
+看看("用 w 之后")
+print('   ↑ 注意：这两种情况的输出一模一样！光看内容分不出是"清空"还是"新建"')
 print()
 
 # ── 实验 2：with 自动关 + 关了再用会报错 ──

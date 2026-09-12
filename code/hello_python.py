@@ -703,3 +703,13 @@
 # print('   等价写法:', f'bugs={bugs!r} count={count!r}')
 
 # print(repr('3.14'.zfill(5)))
+
+# 7.2 读写文件（`open` = 借书，`close` = 还书，`with` = 自动还）
+# with open('demo.txt', 'w', encoding='utf-8') as f:
+#     f.write('第一行\n第二行\n')
+# print('刚写完 →', repr(open('demo.txt', encoding='utf-8').read()))
+
+
+with open('demo.txt', 'a', encoding='utf-8') as f:      # 'a' 追加
+    f.write('第三行\n')
+print("用 'a' 之后 →", repr(open('demo.txt', encoding='utf-8').read()))
