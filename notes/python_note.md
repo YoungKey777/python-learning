@@ -3437,6 +3437,312 @@ with open('逐笔成交.csv', encoding='utf-8') as f:
 
 ---
 
+### 7.2.2 使用 json 保存结构化数据（把字典存进文件，一行搞定）
+
+**一句话：7.2 和 7.2.1 学的是"怎么把纯文本存进文件"，这节是"怎么把**结构**（字典、列表）存进文件"。** 靠标准库 `json`，四个函数搞定，不用自己解析。
+
+---
+
+**① 为什么需要它（官方开头那段的意思）**
+
+| 想存的东西 | 不借助 json 会怎样 |
+|---|---|
+| 一个字符串 | 没问题，`f.write(s)` 就行 |
+| 一个数字 | 麻烦 —— `read()` 只返回字符串，得自己 `int()` 转回来 |
+| **一个嵌套的字典/列表** | **噩梦** —— 你得自己设计一套格式、自己写解析、自己调 bug |
+
+官方原话的意思：**"与其让用户持续编写和调试代码来把复杂数据类型存入文件，不如用一个现成的通用格式。"** 那个格式就是 **JSON**（JavaScript Object Notation）。
+
+**两个必须知道的行话**（官方用了英文，中文圈也常说）：
+
+| 术语 | 意思 | 方向 |
+|---|---|---|
+| **序列化**（serializing） | 把 Python 数据 → 变成字符串 | 存出去 |
+| **反序列化**（deserializing） | 从字符串 → 重建 Python 数据 | 读回来 |
+
+**为什么用 JSON 而不是自己发明格式？** 官方备注说得很直白：**"JSON 格式通常用于现代应用程序的数据交换，程序员早已对它耳熟能详，可谓是交互操作的不二之选。"** —— 说白了就是：**天下人都用它，你用它就不用解释。**
+
+---
+
+**② 四个函数（命名规律一眼记住）**
+
+```python
+import json
+
+x = [1, 'simple', 'list']
+json.dumps(x)          # → '[1, "simple", "list"]'
+```
+
+| 函数 | 干什么 | 记忆法 |
+|---|---|---|
+| `json.dumps(x)` | 对象 → **字符串** | dump + **s**tring |
+| `json.dump(x, f)` | 对象 → **直接写进文件** | 没有 s = 直接对文件 |
+| `json.loads(s)` | **字符串** → 对象 | load + **s**tring |
+| `json.load(f)` | **文件** → 对象 | 没有 s = 直接对文件 |
+
+> 🎯 **规律：带 `s` 的跟"字符串"打交道，不带的跟"文件"打交道。**
+> （这个 `s` 是 string 的意思 —— 和 7.1 里 `str`/`repr` 没关系，纯粹是巧合好记）
+
+```python
+# 写文件
+with open('cfg.json', 'w', encoding='utf-8') as f:
+    json.dump(data, f)
+
+# 读文件
+with open('cfg.json', encoding='utf-8') as f:
+    data = json.load(f)
+```
+
+---
+
+**③ JSON 能存什么 + 三个必踩的坑**
+
+**能存的（就是 Python 最常见的那些）：**
+
+```python
+json.dumps({'str': 'abc', 'int': 42, 'float': 3.14,
+            'bool': True, 'none': None, 'list': [1, 2], 'dict': {'a': 1}})
+# → '{"str": "abc", "int": 42, "float": 3.14, "bool": true, "none": null, ...}'
+```
+
+**坑一：中文默认会被转成 `\uXXXX`**
+
+```python
+data = {'股票': '贵州茅台', '收益率': 0.1835}
+
+json.dumps(data)
+# → '{"\\u80a1\\u7968": "\\u8d35\\u5dde\\u8305\\u53f0", "\\u6536\\u76ca\\u7387": 0.1835}'
+#     ↑ 完全没法看
+
+json.dumps(data, ensure_ascii=False)      # ← 加上这个
+# → '{"股票": "贵州茅台", "收益率": 0.1835}'
+```
+
+> **`ensure_ascii=False` 的意思是"别非得用 ASCII"** —— 默认 `True` 会把所有非 ASCII 字符转义成 `\uXXXX`（数据没错，但人没法读、也没法手动改）。
+> **中文项目一律加上这个参数。**
+
+**坑二：往返一趟，类型会变**
+
+```python
+original = {'名字': ('元组', '会变成列表')}
+back = json.loads(json.dumps(original))
+
+type(original['名字'])   # → tuple
+type(back['名字'])       # → list     ← 元组变成列表了！
+```
+
+**为什么？** 因为 **JSON 里根本没有"元组"这个概念** —— 它只有"数组"。存的时候就当数组存了，读回来自然也只会变成列表。
+
+> ⚠️ **所以 JSON 只适合存"纯数据"，不适合精确还原 Python 对象。** 存之前想清楚：我读回来时还在乎它是元组吗？
+
+**坑三：字典的【数字键】会变成字符串**
+
+```python
+d = {1: 'one', 2: 'two'}
+json.loads(json.dumps(d))
+# → {'1': 'one', '2': 'two'}     ← 键从 int 变成了 str！
+```
+
+**因为 JSON 规范规定：对象的键只能是字符串。**
+
+**存不了的类型 → 直接 `TypeError`：**
+
+```python
+json.dumps({1, 2, 3})                    # TypeError: Object of type set is not JSON serializable
+json.dumps(datetime.datetime.now())      # TypeError: Object of type datetime is not JSON serializable
+```
+
+**遇到这个报错怎么办？自己先转成能存的形式：**
+
+```python
+json.dumps(list({1, 2, 3}))                          # 集合 → 列表
+json.dumps(datetime.datetime.now().isoformat())      # 日期 → 字符串
+```
+
+---
+
+**④ 官方那条编码警告（回指 7.2）**
+
+> **官方原话："JSON 文件必须以 UTF-8 编码。当打开 JSON 文件作为一个 text file 用于读写时，使用 `encoding="utf-8"`。"**
+
+**这条不是客套，实测给你看** —— 不写 `encoding` 会发生什么：
+
+```python
+with open('cfg.json') as f:        #  ← 忘了写 encoding
+    json.load(f)
+# UnicodeDecodeError: 'gbk' codec can't decode byte 0x87 in position 43: illegal multibyte sequence
+```
+
+**因为你的 Windows 默认用 `cp936`（GBK）去读**，而 JSON 文件是 UTF-8 存的 —— 中文部分直接崩。
+
+> 🎯 **7.2 学的 `encoding='utf-8'`，在这节是硬性要求**，不是"建议"。
+> **JSON 规范本身就规定了必须是 UTF-8** —— 这是它的规矩，不是我劝你。
+
+💡 **一个有趣的例外**（官方提到传 binary file 也行）：
+
+```python
+with open('cfg.json', 'rb') as f:      # 二进制模式 —— 不用写 encoding
+    json.load(f)                       # ← 照样能读！
+```
+
+**为什么？** 因为 JSON 规范已经规定了"就是 UTF-8"，所以二进制模式下 Python 直接按 UTF-8 解，**不需要你告诉它**。
+
+> ⚠️ 但**写**的时候不适用：
+> ```python
+> with open('cfg.json', 'wb') as f:
+>     json.dump(data, f)      # TypeError: a bytes-like object is required, not 'str'
+> ```
+> **读可以用 `'rb'`，写还是老老实实 `'w'` + `encoding='utf-8'`。**
+
+---
+
+**⑤ `pickle` —— 官方特意"参见"它，是为了警告你**
+
+官方在末尾挂了个 `pickle` 模块的链接，并给了两条理由**劝你别用**：
+
+| | JSON | pickle |
+|---|---|---|
+| 格式 | 文本，人可读 | 字节串，不可读 |
+| 谁能读 | **所有语言** | **只有 Python** |
+| 存自定义类 | 要额外努力 | 直接就能存 |
+| **安全** | ✅ 安全 | ⚠️ **默认不安全** |
+
+官方那句警告值得逐字读：
+
+> **"如果反序列化的数据是由手段高明的攻击者精心设计的，这种不受信任来源的 pickle 数据可以执行任意代码。"**
+
+**翻译成人话：`pickle.load()` 一个来路不明的文件 ≈ 直接运行别人给你的程序。** 不是"可能出错"，是**可以在你电脑上执行任意代码**。
+
+> 🎯 **实践结论**：
+> - 存**数据**（配置、回测结果、参数）→ 用 **JSON**
+> - 存**Python 对象**（自定义类的实例）→ 用 pickle，但**只能 load 你自己生成的文件**
+> - **永远不要 `pickle.load()` 从网上下载的、或别人发给你的文件**
+
+---
+
+**🎯 动手实验（贴进 hello_python.py 直接跑）：**
+
+> 📁 会在脚本同目录创建 `demo_cfg.json`。
+
+```python
+import json
+
+# ── 实验 1：官方例子 + 四个函数的命名规律 ──
+x = [1, 'simple', 'list']
+print('dumps  ->', repr(json.dumps(x)))
+print('loads  ->', repr(json.loads(json.dumps(x))), '  ← 转一圈回来了')
+print()
+
+# ── 实验 2：坑一 —— 中文默认变 \uXXXX ──
+data = {'股票': '贵州茅台', '收益率': 0.1835}
+print('默认           ->', json.dumps(data))
+print('ensure_ascii=False ->', json.dumps(data, ensure_ascii=False))
+print()
+
+# ── 实验 3：坑二 —— 元组往返变列表 ──
+original = {'名字': ('元组', '会变成列表'), '价格': 1680.5}
+back = json.loads(json.dumps(original, ensure_ascii=False))
+print('存进去:', original, ' 类型:', type(original['名字']).__name__)
+print('读回来:', back,     ' 类型:', type(back['名字']).__name__)
+print()
+
+# ── 实验 4：坑三 —— 数字键变字符串 ──
+d = {1: 'one', 2: 'two'}
+r = json.loads(json.dumps(d))
+print('存进去键类型:', type(list(d.keys())[0]).__name__,
+      ' 读回来键类型:', type(list(r.keys())[0]).__name__)
+print()
+
+# ── 实验 5：存不了的类型 ──
+for val in [{1, 2, 3}]:
+    try:
+        json.dumps(val)
+    except TypeError as e:
+        print('存集合 ->', e)
+print()
+
+# ── 实验 6：完整流程 —— 写进文件、读回来 ──
+cfg = {'策略': '双均线', '快线': 5, '慢线': 20, '手续费': 0.0003}
+
+with open('demo_cfg.json', 'w', encoding='utf-8') as f:
+    json.dump(cfg, f, ensure_ascii=False, indent=2)      # indent=2 → 缩进，好看
+
+print('文件内容：')
+print(open('demo_cfg.json', encoding='utf-8').read())
+
+with open('demo_cfg.json', encoding='utf-8') as f:
+    cfg2 = json.load(f)
+print('读回来 ->', cfg2)
+print('快线 =', cfg2['快线'], ' 类型:', type(cfg2['快线']).__name__)
+print()
+
+# ── 实验 7：亲眼看"不写 encoding 会崩" ──
+try:
+    json.load(open('demo_cfg.json'))          # 故意不写 encoding
+except UnicodeDecodeError as e:
+    print('不写 encoding ->', type(e).__name__, ':', str(e)[:60])
+
+with open('demo_cfg.json', 'rb') as f:        # 二进制模式反而不用写
+    print('用 rb 读      ->', json.load(f))
+```
+
+**量化相关 💰：**
+
+```python
+# json 在量化里的定位非常明确：【存配置】，不存行情
+
+# 1) 存策略参数 —— 这是最典型的用法
+#    为什么不用 .py 存参数？因为参数要能【改】，而且改完不用动代码
+cfg = {'策略': '双均线', '快线': 5, '慢线': 20, '手续费': 0.0003, '起始资金': 100000}
+with open('策略参数.json', 'w', encoding='utf-8') as f:
+    json.dump(cfg, f, ensure_ascii=False, indent=2)
+# 以后调参：改 JSON 文件就行，代码一个字不动
+
+# 2) 存回测结果摘要（不是明细！明细用 CSV）
+result = {'策略': '双均线', '年化': 0.183, '最大回撤': -0.092, '夏普': 1.42,
+          '回测区间': ['2020-01-01', '2026-09-01']}
+with open('回测结果.json', 'w', encoding='utf-8') as f:
+    json.dump(result, f, ensure_ascii=False, indent=2)
+
+# 3) 【不要】用它存行情数据！
+#    行情是"表格"（成千上万行），JSON 存起来又大又慢
+#    回指碳价那条线：历史行情一律存 CSV，交给 pandas 读
+#      行情明细（表格）→ CSV
+#      参数配置（一小坨）→ JSON
+#      ↑ 这个分工记住就行
+
+# ─────────────────────────────────────────────
+# 四个函数一句话：
+#   json.dump / load     → 文件
+#   json.dumps / loads   → 字符串
+#   中文 + ensure_ascii=False；文件 + encoding='utf-8'
+```
+
+---
+
+## 🎓 第 7 章收官
+
+**"输入与输出"这一章，你学到的东西比看起来多得多：**
+
+| 小节 | 一句话记住 |
+|---|---|
+| 7.1 | 写入值有四条路；**`print` 本质上是往文件里写**；`str` vs `repr` |
+| 7.1.1 | `{}` 里只有 4 样东西；格式规格骨架 `{:[对齐][宽度][.精度][类型]}`；**两代通用** |
+| 7.1.2 | `.format()` = 上一代写法，**认得就行**；冒号右边和 f-string 一样 |
+| 7.1.3 | 手动排版是古董，**只有 `.zfill()` 还活着** |
+| 7.1.4 | `%` 更老，**只有 `logging` 还在用**；三代传承：`f-string` ← `.format()` ← `%` |
+| 7.2 | **`open(文件名, 模式, encoding='utf-8')` + `with`** —— 够用 90% |
+| 7.2.1 | **读有四种，写只有一种**；`for line in f` 是默认选择 |
+| 7.2.2 | **配置用 JSON，行情用 CSV**；中文加 `ensure_ascii=False` |
+
+**三条贯穿全章的主线：**
+
+1. **`print` 和文件是一回事** —— 7.1 说 `sys.stdout` 是文件对象，7.2 教你真文件，7.2.1 的 `write()` 和 `print()` 用的是同一套逻辑。**这一章其实是"讲了一件事的三种形态"。**
+2. **编码是隐藏的主角** —— `encoding='utf-8'` 在 7.1（`sys.stdout` 的编码）、7.2（`open`）、7.2.2（JSON 必须 UTF-8）反复出现。**它不是可选项，是这一章的底线。**
+3. **三代格式化写法，你只用最新那代** —— 但**认得老两代**，因为网上的教程和别人的代码里全是它们。
+
+---
+
 ## 8 错误与异常（报错急救章——量化拉数据每天都要用）
 
 ### 8.1 错误两大族 + 语法错误（编译期拒稿）

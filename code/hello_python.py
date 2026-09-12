@@ -715,6 +715,12 @@
 # print("用 'a' 之后 →", repr(open('demo.txt', encoding='utf-8').read()))
 
 
-with open('demo.txt', encoding='utf-8') as f:
-    print(f.read(5))
-    print(f.read(5))
+# with open('demo.txt', encoding='utf-8') as f:
+#     print(repr(f.read(5)))
+#     print(repr(f.read(5)))
+
+f = open('demo.txt', 'rb+')
+f.write(b'8743456789abcdef')     # 16 个字节
+print(f.seek(0))          # 跳到位置 5
+print(f.tell())           # → 5
+print(f.read(1))          # → b'5'      ← 位置 5 上是字符 '5'（第 6 个字节）
