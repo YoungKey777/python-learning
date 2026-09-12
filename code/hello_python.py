@@ -644,14 +644,60 @@
 #     print('Goodbye, world!')
 # 预期：先打印 Goodbye, world! → 再出现 traceback（收尾完才上报）
 
+# def 吃掉异常():
+#     try:
+#         raise ValueError('本该抛出来')
+#     finally:
+#         return '我被返回值顶替了'
+# print(吃掉异常())
+
+#7.1
+# import sys
+# sys.stdout.write('write → ')
+# sys.stdout.write('A')
+# sys.stdout.write(' B\n')
+# print('   ← 看，AB 黏在一起了，换行得自己补')
+# try:
+#     sys.stdout.write(123)
+# except TypeError as e:
+#     print('write(123) →', type(e).__name__, ':', e)
+#     print('print(123) →', 123, '  ← 对比：print 自动把数字转成了字符串')
+
+# import sys
+# print(f'喂给 print → {0.4967:.2%}',' {0.4967:.2%}')
+# sys.stdout.write(f'喂给 write → {0.4967:.2%}\n')   # 注意自己补的 \n
+# print()
+
+# ── 实验 1：str() vs repr() —— 亲眼对比 ──
+# s = 'Hello, world.\n'
+# print('str  →', str(s))
+# print('repr →', repr(s))
+# print('直接 print 字符串 →', s)
 
 
+# s = 'Hello, world.\n'
+# print('str  →', str(s), end='|')    # end='|' 把 print 那个自动换行换成竖线
+# print('repr →', repr(s), end='|')
+# print('直接 →', s, end='|')
 
 
+# hello = 'hello, world\n'
+# print('print(hello)  →')        # 真的换一行
+# print(hello)
+# print('print(repr(hello)) →', repr(hello))   # \n 现形
+# 带空格的 = '  茅台  '
+# print('看不出问题:', 带空格的, '| repr 一览无余:', repr(带空格的))
 
-def 吃掉异常():
-    try:
-        raise ValueError('本该抛出来')
-    finally:
-        return '我被返回值顶替了'
-print(吃掉异常())
+# ── 实验 3：format 和 f-string 是同一套格式规格，两种写法 ──
+# yes_votes = 42_572_654
+# total_votes = 85_705_149
+# percentage = yes_votes / total_votes
+# print('{:-9} YES votes  {:2.2%}'.format(yes_votes, percentage))   # 老写法
+# print(f'{yes_votes:-9} YES votes  {percentage:2.2%}')  
+
+
+bugs = 'roaches'
+count = 13
+print('② 自说明   :', f'{bugs=} {count=}')
+print('② 自说明   :', f'{bugs} {count}')
+print('   等价写法:', f'bugs={bugs!r} count={count!r}')
