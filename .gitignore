@@ -14,6 +14,9 @@ env/
 *.csv
 *.xlsx
 
+# 例外：pandas 官方教程示例数据（581 KB、公开、无版权）—— 让仓库 clone 下来就能跑 Day 1
+!pandas/data/*.csv
+
 # 临时
 *.tmp
 ~$*
