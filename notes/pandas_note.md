@@ -9,17 +9,17 @@
 
 ## 🧭 路线（8 天，每天一篇，约 40~60 分钟）
 
-| 天 | 教程 | 当天练习 | 状态 |
-|---|---|---|---|
-| 0 | 数据落本地 | titanic 等抓进 `pandas/data/` | ✅ 5 个文件已落盘 |
-| 1 | [01 数据结构](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/01_table_oriented.html) + [02 读写](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/02_read_write.html) | 读 titanic → `head/info/describe` → 写回 csv | 🟡 `read_csv`/`shape`/`head`/`set_index` 已跑通；`info`/`describe`/`to_csv` 待做 |
-| 2 | [03 选取筛选](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/03_subset_data.html) | `loc`/`iloc`/布尔索引：筛出"女性且票价 > 30" | ⬜ |
-| 3 | [05 派生新列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/05_add_columns.html) | 向量化算 family_size、票价分箱（戒 for 循环） | ⬜ |
-| 4 | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html) | `groupby`：按舱位 × 性别算生存率 | ⬜ |
-| 5 | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html) | `pivot`/`melt` 宽长互转 | ⬜ |
-| 6 | [08 合并表](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/08_combine_dataframes.html) | `concat`/`merge` 把两张表拼起来 | ⬜ |
-| 7 | [09 时间序列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/09_timeseries.html) ★ | `resample` 日→月 + `rolling` 20 日均线 | ⬜ |
-| 8 | 收口 | 完整走一遍"读 CSV → 统计 → 出结论"，脚本存 `code/` | ⬜ |
+| 天   | 教程                                                                                                                                                                                                                                  | 当天练习                                      | 状态                                                                         |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------- |
+| 0   | 数据落本地                                                                                                                                                                                                                               | titanic 等抓进 `pandas/data/`                | ✅ 5 个文件已落盘                                                                 |
+| 1   | [01 数据结构](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/01_table_oriented.html) + [02 读写](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/02_read_write.html) | 读 titanic → `head/info/describe` → 写回 csv | ✅ 六个动作全跑通；写回后重读 `(891, 12)` 对得上 |
+| 2   | [03 选取筛选](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/03_subset_data.html)                                                                                                                    | `loc`/`iloc`/布尔索引：筛出"女性且票价 > 30"          | ⬜                                                                          |
+| 3   | [05 派生新列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/05_add_columns.html)                                                                                                                    | 向量化算 family_size、票价分箱（戒 for 循环）           | ⬜                                                                          |
+| 4   | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html)                                                                                                           | `groupby`：按舱位 × 性别算生存率                    | ⬜                                                                          |
+| 5   | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html)                                                                                                            | `pivot`/`melt` 宽长互转                       | ⬜                                                                          |
+| 6   | [08 合并表](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/08_combine_dataframes.html)                                                                                                              | `concat`/`merge` 把两张表拼起来                  | ⬜                                                                          |
+| 7   | [09 时间序列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/09_timeseries.html) ★                                                                                                                   | `resample` 日→月 + `rolling` 20 日均线         | ⬜                                                                          |
+| 8   | 收口                                                                                                                                                                                                                                  | 完整走一遍"读 CSV → 统计 → 出结论"，脚本存 `code/`       | ⬜                                                                          |
 
 - **挂账**：[04 画图](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/04_plotting.html) 并进阶段 3 可视化一起学；[10 文本数据](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/10_text_data.html) 选学
 - **验收（第 8 天自测）**：不看文档写出 `groupby` / `merge` / `resample` / `rolling`，并说清 `loc` 和 `iloc` 的区别——对上了 roadmap 阶段 2 的检验标准"读 CSV → 算收益率 → 画图"
@@ -127,6 +127,127 @@ print(df2.head(3))
 但名牌**可以换** —— `set_index('Name')` 一换，左边就成人名了。
 
 > 📌 `[5 rows x 12 columns]` 这种**方括号包的尾巴**，以后会一直出现。记住它不属于数据，是 pandas 的「旁白」。
+
+### 关键操作 ④ `df.info()` —— 看底细（哪列有洞）
+
+```python
+df.info()                        # 不用 print，它自己会往屏幕上打
+```
+
+输出（节选）：
+
+```
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 891 entries, 0 to 890
+Data columns (total 12 columns):
+ #   Column       Non-Null Count  Dtype  
+---  ------       --------------  -----  
+ 0   PassengerId  891 non-null    int64  
+ 5   Age          714 non-null    float64
+ 10  Cabin        204 non-null    object 
+ 11  Embarked     889 non-null    object 
+dtypes: float64(2), int64(5), object(5)
+memory usage: 83.7+ KB
+```
+
+**`info()` 是「进门先做的全身检查」，一次给五样：**
+
+| 告诉你什么 | 在输出里 |
+|---|---|
+| 什么类型 | `<class 'pandas.core.frame.DataFrame'>` ← `df` 是 `DataFrame` 类的**实例** |
+| 多少行 | `891 entries, 0 to 890` |
+| 每列的**类型** | `Dtype` 列 |
+| 每列的**非空数** | `Non-Null Count` 列 |
+| 占多大内存 | `memory usage` |
+
+**重点是 `Non-Null Count` 那一列** —— 拿它跟总行数 891 一比，哪列有洞立刻现形：
+
+| 列 | Non-Null | 891 − 它 = **洞** |
+|---|---|---|
+| `PassengerId` | 891 | 0 |
+| `Age` | 714 | **177** |
+| `Cabin` | 204 | **687** |
+| `Embarked` | 889 | **2** |
+| 其余 8 列 | 891 | 0 |
+
+> 📌 **「真实数据是有洞的」第一次撞到脸上**：891 个乘客，177 个年龄不详、**687 个舱位不详（四分之三）**。
+> 以后拿到**任何**一张表，第二个动作永远是 `df.info()`。这不是教程规矩，是保命习惯。
+
+跟 `head()` 对比：`head()` 看**长相**（塞满你眼前 5 行，看着挺完整）；`info()` 看**底细**（891 行全貌，一眼看出哪列是筛子）。
+
+> ⚠️ `info()` 不是「查空专用工具」，它只是**顺手**告诉你空值。专门查空的另有其人（`isnull()`），以后教。
+
+### 关键操作 ⑤ `df.describe()` —— 看统计
+
+```python
+print(df.describe())             # 这个要套 print
+```
+
+```
+       PassengerId    Survived      Pclass         Age  ...        Fare
+count   891.000000  891.000000  891.000000  714.000000  ...  891.000000
+mean    446.000000    0.383838    2.308642   29.699118  ...   32.204208
+std     257.353842    0.486592    0.836071   14.526497  ...   49.693429
+min       1.000000    0.000000    1.000000    0.420000  ...    0.000000
+25%     223.500000    0.000000    2.000000   20.125000  ...    7.910400
+50%     446.000000    0.000000    3.000000   28.000000  ...   14.454200
+75%     668.500000    1.000000    3.000000   38.000000  ...   31.000000
+max     891.000000    1.000000    3.000000   80.000000  ...  512.329200
+```
+
+两个要点：
+
+1. **`count` 行 = `info()` 的 `Non-Null Count`** —— 同一个数（`Age` 都是 714）。算统计量前先数数有几个数，pandas 也是这习惯
+2. **只统计了 7 列，不是 12 列** —— `describe()` 默认只算**数字列**
+
+**为什么跳过文字列**：`describe()` 算的是 `mean`（平均）、`std`（标准差），你让 pandas 求 `"male"` 和 `"female"` 的平均值，它没法算。**文字没有平均值。**
+
+> 文字列不是统计不了，是得换个问法 —— 不问「平均多少」，问「**各有多少个**」。Day 2 头一道题。
+
+**`Dtype` 三档**（就是 `info()` 输出里那一列）：
+
+| dtype | 意思 | titanic 里 |
+|---|---|---|
+| `int64` | 整数 | `PassengerId` `Survived` `Pclass` `SibSp` `Parch` |
+| `float64` | 小数 | `Age` `Fare` |
+| `object` | **文字**（字符串） | `Name` `Sex` `Ticket` `Cabin` `Embarked` |
+
+`int64`(5) + `float64`(2) = **7** —— 正好是 `describe()` 输出的那 7 列。
+
+### 关键操作 ⑥ `df.to_csv()` —— 写回去
+
+```python
+df.to_csv('code/titanic_copy.csv', index=False)
+```
+
+**`index=False` 不能省。** 不加的话，pandas 会觉得「你那个名牌（`0 1 2 3...`）也是宝贵数据」，**把它当成一列写进文件**。下次读回来就莫名多一列（叫 `Unnamed: 0`），**12 列变 13 列**。
+
+验证 —— 写完重读，看形状：
+
+```python
+df3 = pd.read_csv('code/titanic_copy.csv')
+print(df3.shape)                 # → (891, 12) ✅
+```
+
+**验证依据**（比 shape 更硬的证据，直接看文件）：表头正好 12 个列名，且第一行第一格是 `1`（`PassengerId`）而不是 `0`（index）—— 名牌确实没进去。
+
+> 🔍 顺带：文件里 `...7.25,,S` 那**两个连着逗号**，中间就是空的 `Cabin` —— `info()` 里那 687 个洞，物理上就长这样。
+
+⚠️ **千万别写 `df = df.to_csv(...)`** —— `to_csv()` **不返回任何东西**（返回 `None`）。套上等号，`df` 这个名字就改指到 `None` 上去了；原表虽然还在内存里飘着，但**再没名字叫得到它**，下一行 `df.shape` 直接报错。
+
+### 🔑 贯穿全局的一条规矩：**默认「造新的」，不动原来**
+
+`set_index()` 不是「把 `df` 的 index 换掉」，是「照着 `df` **造一张新表**，它的 index 是 `Name`」。谁接住它，谁就是新名字：
+
+```python
+df2 = df.set_index('Name')       # 右边先造新表，左边后起名
+print(df.head(3))                # df 的 index 还是 0 1 2 —— 从头到尾没被碰
+```
+
+跟 `x = 3 + 5` 一个道理：不能说「把 `x` 加了一下」，是 `3+5` **先算出 8**，`x` 才指过去。**先干活，后起名。**
+
+> 📌 **pandas 里绝大多数操作，默认都是「造一张新的」，不动原来那张。**
+> 所以会写一堆 `df2 = ...`、`df3 = ...` —— 不是啰嗦，是为了不把原始数据搞脏。
 
 ### 踩的坑
 
