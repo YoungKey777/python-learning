@@ -13,7 +13,7 @@
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------- |
 | 0   | 数据落本地                                                                                                                                                                                                                               | titanic 等抓进 `pandas/data/`                | ✅ 5 个文件已落盘                                                                 |
 | 1   | [01 数据结构](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/01_table_oriented.html) + [02 读写](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/02_read_write.html) | 读 titanic → `head/info/describe` → 写回 csv | ✅ 六个动作全跑通；写回后重读 `(891, 12)` 对得上 |
-| 2   | [03 选取筛选](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/03_subset_data.html)                                                                                                                    | `loc`/`iloc`/布尔索引：筛出"女性且票价 > 30"          | ⬜                                                                          |
+| 2   | [03 选取筛选](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/03_subset_data.html)                                                                                                                    | `loc`/`iloc`/布尔索引：筛出"女性且票价 > 30"          | ✅ 选列/筛行/loc/iloc 全跑通；筛出"女性且票价>30" = `(113, 12)` |
 | 3   | [05 派生新列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/05_add_columns.html)                                                                                                                    | 向量化算 family_size、票价分箱（戒 for 循环）           | ⬜                                                                          |
 | 4   | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html)                                                                                                           | `groupby`：按舱位 × 性别算生存率                    | ⬜                                                                          |
 | 5   | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html)                                                                                                            | `pivot`/`melt` 宽长互转                       | ⬜                                                                          |
@@ -294,7 +294,230 @@ PS E:\OB\projects\DEMO\Knowledge>     # ← 提示符里这串 = 你现在站的
 
 ## Day 2 · 选取筛选（loc / iloc / 布尔）
 
-> 待填：一句话 / 3 个关键操作 / 踩的坑
+> **一句话**：`df[...]` 是**看菜下饭**的 —— 方括号里装**列名**，它去**取列**；装**真假表**，它去**筛行**。同一个方括号，两种人格。
+>
+> 🔗 对照：跟 ArcGIS 属性表里的「按属性选择」同一件事 —— 先写条件，再执行。
+
+### 关键操作 ① 选列：单括号给「线」，双括号给「表」
+
+```python
+a = df["Age"]              # 单括号 → Series（一维）
+print(a.shape)             # (891,)
+
+b = df[["Age", "Sex"]]     # 双括号 → DataFrame（二维）
+print(b.shape)             # (891, 2)
+
+c = df[["Age"]]            # 双括号但只取一列
+print(c.shape)             # (891, 1)  ← 还是两个数！
+```
+
+| 写法 | 拿到 | 形状 | 几个数 |
+|---|---|---|---|
+| `df["Age"]` | **Series**（一条线） | `(891,)` | 1 个 |
+| `df[["Age"]]` | **DataFrame**（一张窄表） | `(891, 1)` | 2 个 |
+| `df[["Age","Sex"]]` | **DataFrame** | `(891, 2)` | 2 个 |
+
+**决定权在括号层数，不在取了几列。**
+
+> 📌 **shape 里有几个数 = 这东西有几个维度。**
+> 1 个数 = 一维，只有「长度」；2 个数 = 二维，「行 × 列」。
+> `(891, 1)` 和 `(891,)` 是**两个不同的东西**，不是同一种东西的两种写法。
+
+**那个逗号**：`(891,)` 里的逗号不是「还有个空位」，是 Python **单元素元组**的写法。
+
+```python
+(891)    # 就是数字 891，括号只是装饰
+(891,)   # 只装了一个数的元组
+```
+
+**「取一列」和「取一行」—— 长度是交叉的：**
+
+```python
+print(df["Age"].shape)     # (891,)  ← 891 = 行数
+print(df.iloc[0].shape)    # (12,)   ← 12  = 列数
+```
+
+取列，长度是**行数**；取行，长度是**列数**。**看形状里那个数从哪来，就知道它是行还是列。**
+
+取一行拿到的是一张**竖过来的表** —— 列名跑到左边当了标签：
+
+```
+PassengerId                          1
+Survived                             0
+Pclass                               3
+Name           Braund, Mr. Owen Harris
+Age                               22.0
+Cabin                              NaN
+Name: 0, dtype: object
+```
+
+两个细节：
+
+- **`dtype: object`** —— 一行里混着 `Name="Braund..."` 这种文字，**只要有一个格子是文字，整行就退化成 `object`**（对比 `df["Age"]` 是 `float64`：一列清一色数字）
+- **`Name: 0`** —— Series 底下那个 `Name:` 在说「**我是从哪儿切下来的**」：切列写列名（`Name: Age`）、切行写行号（`Name: 0`）、`value_counts()` 写 `count`
+
+### 关键操作 ② 筛行：**造名单 → 执行名单**
+
+```python
+mask = df["Age"] > 35      # ① 造名单
+print(mask.shape)          # (891,)  ← 和原表一样长
+print(mask.head())         # dtype: bool
+
+above35 = df[mask]         # ② 执行名单
+print(above35.shape)       # (217, 12)
+```
+
+**`mask` 不是「被显示出来」，是「被拿去执行」。**
+
+```
+mask 第 0 个 = False  →  第 0 行，扔
+mask 第 1 个 = True   →  第 1 行，留  →  整行 12 列全带上
+mask 第 2 个 = False  →  第 2 行，扔
+```
+
+**不是「用 True 换出一行」，是「True 决定这行留不留」。** 被留下的行，带着它的全部信息出来 —— `mask` 只管「留不留」，**不管「留哪几列」**。
+
+**长度必须相等**：891 个答案对 891 行，一个答案管一行 —— 这就是先看 `mask.shape` 的原因，对不上就报错。
+
+**`bool` 是第四种 dtype**（前三档是 `int64` / `float64` / `object`）：比较运算的结果只有两种可能，所以是 `bool`。
+
+**筛完之后 index 会跳号：**
+
+```
+原表                     筛完（Age > 35）
+0  Braund     22.0  ✗
+1  Cumings    38.0  ✓  →   1  Cumings    38.0
+2  Heikkinen  26.0  ✗
+6  McCarthy   54.0  ✓  →   6  McCarthy   54.0
+```
+
+**一排房子，拆掉几间，剩下的门牌号不改。**
+
+- ✅ **能查回去** —— 看到 index `6`，就知道是原表第 6 行。金融数据里这很关键（"这是哪一天、哪只股票"）
+- ⚠️ **坑** —— `df[0]` 已经拿不到东西了（0 号被扔了）
+
+### 关键操作 ③ 填洞：`notna()` / `isna()`
+
+```python
+mask2 = df["Age"].notna()   # "这格不是洞吗？"
+df_no_hole = df[mask2]
+print(df_no_hole.shape)     # (714, 12)  ← 就是 info() 里的 "Age 714 non-null"
+```
+
+`isna()` 是它的反面 —— "这格是洞吗？"
+
+**洞在屏幕上显示为 `NaN`**（Not a Number）—— `Cabin` 列里那些 `NaN`，就是 `info()` 说的那 687 个洞。Day 1 是 pandas 告诉你的，Day 2 是你自己筛出来的。
+
+### 关键操作 ④ 多重条件：`&` `|` `~`，每个条件自己裹括号
+
+```python
+mask3 = (df["Sex"] == "female") & (df["Fare"] > 30)
+print(df[mask3].shape)      # (113, 12)
+```
+
+**括号为什么必须 —— 两个原因：**
+
+**原因①：不能用 `and`。** `df["Sex"] == "female"` 给你的**不是单个 True/False，是 891 个**。`and` 一看这么多真值就懵了：
+
+```
+ValueError: The truth value of a Series is ambiguous
+```
+
+| 想说 | 不能写 | 要写 |
+|---|---|---|
+| 且 | `and` | **`&`** |
+| 或 | `or` | **`\|`** |
+| 非 | `not` | **`~`** |
+
+**原因②：`&` 的优先级比 `>` 高**（跟「先乘除后加减」一个道理）。不加括号，Python 会先算 `"female" & df["Fare"]` —— 字符串和 Series 做与运算，当场爆炸。
+
+> **口诀：`&` `|` `~` 两边，每个条件都自己裹一层括号。**
+
+### 关键操作 ⑤ `loc` / `iloc` —— 两把钥匙
+
+> **`loc` 用 index 里存的东西找；`iloc` 用「第几个」找。**
+> `i` = **i**nteger，整数序号；没有 `i` 的那个，认名字。
+
+| | `loc` | `iloc` |
+|---|---|---|
+| **行** | index 里的**值**（门牌） | **第几个**（从 0 数） |
+| **列** | **列名**（字符串） | **第几列**（从 0 数） |
+| 例子 | `df.loc[0, "Age"]` → `22.0` | `df.iloc[0, 5]` → `22.0` |
+
+**行和列都不一样，别只记行的区别。**
+
+**平时不分家**（原始 `df` 的 index 正好是 `0,1,2...`，和位置重合），**一分家就翻脸**：
+
+| 场景 | index 变成什么 | `loc[0]` 还灵吗 |
+|---|---|---|
+| 原始 `df` | `0, 1, 2, 3...` | ✅ |
+| **筛过**（`above35`） | `1, 6, 11, 13...` | ❌ `KeyError: 0` |
+| **`set_index('Name')`**（Day 1 干过） | 人名 | ❌ 得写名字 |
+
+实跑对照 —— 同一个 Cumings 先生，两条路：
+
+```python
+print(above35.iloc[0, 5])     # 第 0 个    → 38.0
+print(above35.loc[1, "Age"])  # 门牌 1 号  → 38.0  ← 同一行
+print(above35.loc[0, "Age"])  # 门牌 0 号  → KeyError: 0
+```
+
+**「第 0 个」≠「门牌 0 号」。**
+
+**切片规则也不一样：**
+
+| | `df.loc[0:2]` | `df.iloc[0:2]` |
+|---|---|---|
+| 拿到几行 | **3 行**（0、1、2） | **2 行**（0、1） |
+| 规则 | 两头**都算**（数门牌：1 号到 3 号，3 号当然也算） | **不含右边**（数个数，跟 Python 列表一致） |
+
+**什么时候用哪个**：明确知道要什么（某一天、某只股票）→ **`loc`，这是干活主力**；只是想看看（前 10 行）→ `iloc`。
+
+### 关键操作 ⑥ 文字统计：换个问法 `value_counts()`
+
+```python
+print(df["Sex"].value_counts())
+```
+
+```
+Sex
+male      577
+female    314
+Name: count, dtype: int64
+```
+
+**不问「平均多少」，问「各有多少个」。** 577 + 314 = 891，一个不多一个不少。
+
+- **自动按数量排序**（多的在上面）
+- `dtype: int64` —— 数人头，不可能是 577.5 个
+- 这还了 Day 1 欠的那道题：`describe()` 跳过文字列，是因为**文字没有平均值**
+
+### 踩的坑
+
+**① `import` 必须在用之前** —— Python 从上往下读。`import pandas as pd` 被 `#` 注释掉了，下面第 24 行用到 `pd` 就 `NameError`。同一文件里下面第 63 行有句好的 import，**远水救不了近火**。
+
+**② 拼写错最阴** —— `tistanic.csv` ≠ `titanic.csv`。它不「看不懂」，它「**看起来对**」。报 `FileNotFoundError` 先看文件名拼写。
+
+**③ 读报错的顺序：从下往上，只找自己的文件名**
+
+```
+KeyError: 0                                  ← ① 什么错（最底下）
+File ".../pandas/_libs/index.pyx"...         ← ② pandas 内部，别看
+File "...code/pandas_day1.py", line 97       ← ③ 你自己的代码在哪行
+    print(above35.loc[0, "Age"])
+```
+
+中间那一大堆 `hashtable_class_helper.pxi` 是 pandas 在自言自语，跟你没关系。
+
+**常见报错对照：**
+
+| 报错 | 什么时候 |
+|---|---|
+| `KeyError` | `loc` 按门牌找不到（它是查字典，查不到就是"没这个键"） |
+| `IndexError` | `iloc` 数位置越界 |
+| `FileNotFoundError` | 路径/文件名不对 —— 先看提示符站在哪 + 拼写 |
+| `NameError` | 名字没定义（多半是 `import` 被注释了） |
+| `ValueError: truth value ... ambiguous` | 用了 `and`/`or` 而不是 `&`/`\|` |
 
 ## Day 3 · 派生新列（向量化）
 
