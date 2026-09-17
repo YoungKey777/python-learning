@@ -14,7 +14,7 @@
 | 0   | 数据落本地                                                                                                                                                                                                                               | titanic 等抓进 `pandas/data/`                | ✅ 5 个文件已落盘                                                                 |
 | 1   | [01 数据结构](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/01_table_oriented.html) + [02 读写](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/02_read_write.html) | 读 titanic → `head/info/describe` → 写回 csv | ✅ 六个动作全跑通；写回后重读 `(891, 12)` 对得上 |
 | 2   | [03 选取筛选](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/03_subset_data.html)                                                                                                                    | `loc`/`iloc`/布尔索引：筛出"女性且票价 > 30"          | ✅ 选列/筛行/loc/iloc 全跑通；筛出"女性且票价>30" = `(113, 12)` |
-| 3   | [05 派生新列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/05_add_columns.html)                                                                                                                    | 向量化算 family_size、票价分箱（戒 for 循环）           | ⬜                                                                          |
+| 3   | [05 派生新列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/05_add_columns.html)                                                                                                                    | 向量化算 family_size、票价分箱（戒 for 循环）           | ✅ 向量化 / 新列 / `pd.cut` 分箱全跑通；321+321+181+53+NaN 15 = 891 |
 | 4   | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html)                                                                                                           | `groupby`：按舱位 × 性别算生存率                    | ⬜                                                                          |
 | 5   | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html)                                                                                                            | `pivot`/`melt` 宽长互转                       | ⬜                                                                          |
 | 6   | [08 合并表](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/08_combine_dataframes.html)                                                                                                              | `concat`/`merge` 把两张表拼起来                  | ⬜                                                                          |
@@ -471,6 +471,27 @@ print(above35.loc[0, "Age"])  # 门牌 0 号  → KeyError: 0
 | 拿到几行 | **3 行**（0、1、2） | **2 行**（0、1） |
 | 规则 | 两头**都算**（数门牌：1 号到 3 号，3 号当然也算） | **不含右边**（数个数，跟 Python 列表一致） |
 
+> 🔑 **记忆钩子（切片怎么记）**
+>
+> **「有 `i` 的 `iloc`，和 Python 列表用法一样。」**
+>
+> `i` = **i**nteger（整数下标），而 Python **列表**的下标也是整数 —— 同一套规矩：
+>
+> | | Python 列表 | `iloc` |
+> |---|---|---|
+> | 切片 `[0:2]` | 2 个，**不含右边** | **一样** |
+> | 取负号 `[-1]` | 最后一个 | **一样**（`df.iloc[-1]` 能拿最后一行） |
+>
+> **所以只需要记住「`loc` 是那个特殊的」** —— `iloc` 不用记，它本来就跟你早会的列表一样。
+>
+> **为什么 `loc` 要特殊？** 因为它主要给**时间**用：
+>
+> ```python
+> df.loc["2026-01-01":"2026-03-31"]     # 碳价数据，1月到3月
+> ```
+>
+> 问「1 月到 3 月」，**3 月 31 号能不算上吗？** 不算上就反人类了。`iloc` 没这问题 —— 它数的是「第几个」，跟日期无关。
+
 **什么时候用哪个**：明确知道要什么（某一天、某只股票）→ **`loc`，这是干活主力**；只是想看看（前 10 行）→ `iloc`。
 
 ### 关键操作 ⑥ 文字统计：换个问法 `value_counts()`
@@ -521,7 +542,175 @@ File "...code/pandas_day1.py", line 97       ← ③ 你自己的代码在哪行
 
 ## Day 3 · 派生新列（向量化）
 
-> 待填：一句话 / 3 个关键操作 / 踩的坑
+> **一句话**：加新列不用一行行填 —— `df["新列"] = 整列算式`，pandas 替你逐行跑完。**站在等号左边，就是「写」。**
+>
+> 🔗 对照：ArcGIS 里的「添加字段 → 字段计算器」，一行一个值慢慢算。同一个活，pandas 一句话。
+
+### 关键操作 ① 向量化：一列当整体算
+
+```python
+fs = df["SibSp"] + df["Parch"] + 1     # 兄弟姐妹 + 父母子女 + 自己
+print(fs.shape)                        # (891,) ← 891 个一次算完
+print(fs.head())
+```
+
+```
+0    2
+1    2
+2    1
+3    2
+4    1
+dtype: int64
+```
+
+**一行 `for` 都没写。** 换成普通 Python 写法长这样：
+
+```python
+fs_list = []
+for i in range(len(df)):                                    # 4 行
+    fs_list.append(df["SibSp"][i] + df["Parch"][i] + 1)
+```
+
+- **`+` 在这里是「两列相加」**，一行对一行（第 0 行配第 0 行，第 1 行配第 1 行）
+- **`+1` 是把自己算进去** —— 一家几口人，不能把自己漏了
+- **`fs` 是没名字的**：`fs.head()` 的输出里**没有 `Name:` 那一行**。因为 `SibSp` 和 `Parch` 名字不同，pandas 不知道该起什么名（Day 2 那些 `Name: Age` 是从原列切下来的，所以带名字）
+
+> 🔑 **向量化是 pandas 的命根子。** 以后看到 `for` 循环在一行一行扫表，先问一句：**能不能整列算？**
+
+### 关键操作 ② 新列诞生：等号左边 = 写
+
+```python
+df["family_size"] = fs
+print(df.shape)                    # (891, 13) ← 12 列变 13 列
+print(df["family_size"].head())    # Name: family_size, dtype: int64
+```
+
+**这是 Day 1 那条规矩的例外。** Day 1 说「默认造新的，不动原来」—— 那是**读**的时候。今天方括号跑到了**等号左边**。
+
+> 🔑 **判据：看方括号在等号哪边。**
+>
+> | 写法 | 干什么 |
+> |---|---|
+> | `a = df["Age"]` | **读** —— 抽出 `Age` 给 `a`，`df` 纹丝不动 |
+> | `df["family_size"] = fs` | **写** —— 在 `df` 上**新长出一列** |
+
+写完它就归位了：能 `df["family_size"]` 取出来，`df.shape` 也变了，`head()` 里多一根。
+
+### 关键操作 ③ 布尔列：`True` = 1，`False` = 0
+
+```python
+df["is_child"] = df["Age"] < 18
+print(df["is_child"].dtype)      # bool
+```
+
+**命名惯例：`is_` / `has_` 开头** —— 一眼看出这列是「是非题」。
+
+**布尔列能当数用：**
+
+```python
+print(df["is_child"].sum())        # 113
+print(df[df["Age"] < 18].shape)    # (113, 13)
+```
+
+**两条路，同一个数。** `sum()` 把 `True` 当 `1` 加起来 —— 求和的本质就是**数人头**。
+
+⚠️ 但这个 113 是「**有年龄记录** 且 小于 18」—— 见下面第一个坑。
+
+### 关键操作 ④ `pd.cut` 分箱：连续数字 → 档次
+
+```python
+df["fare_level"] = pd.cut(
+    df["Fare"],                            # 切哪一列
+    bins=[0, 10, 30, 100, 600],            # 5 个切点 → 切出 4 段
+    labels=["便宜", "中", "贵", "土豪"]       # 4 段，4 个名字
+)
+print(df["fare_level"].head())
+```
+
+```
+0    便宜
+1     贵
+2    便宜
+3     贵
+4    便宜
+Name: fare_level, dtype: category
+Categories (4, object): ['便宜' < '中' < '贵' < '土豪']
+```
+
+手工核对：第 0 行票价 7.25 → `0 < 7.25 ≤ 10` → 便宜 ✅；第 1 行 71.28 → `30 < 71.28 ≤ 100` → 贵 ✅
+
+**默认不含左边** —— 写成区间是 `(0, 10]`，圆括号那头不算。所以票价正好 = 0 的人，**落不进任何一段**。
+
+**第五种 dtype 出现了：**
+
+| dtype | 长什么样 | 什么时候学的 |
+|---|---|---|
+| `int64` / `float64` | 数字 | Day 1 |
+| `object` | 随便什么文字 | Day 1 |
+| `bool` | `True` / `False` | Day 2 |
+| **`category`** | **有档次的分类** | **Day 3** |
+
+**最妙的是最后那行 `Categories`：**
+
+```
+['便宜' < '中' < '贵' < '土豪']
+         ↑ 它记住了顺序
+```
+
+> **`object` 是「一堆随便的文字」；`category` 是「有档次的分类」。**
+>
+> 那个 `<` 号是 pandas 在说：**我知道这四档谁大谁小** —— 顺序就是你 `labels` 里的先后。以后排序会按「便宜 → 中 → 贵 → 土豪」走，不会按拼音乱排。
+>
+> 顺带**省内存**：891 个格子只有 4 种值，pandas 内部只存编号，不重复存 891 遍汉字。
+
+### 踩的坑
+
+**① `NaN` 跟任何数比较，一律得 `False`**
+
+`Age` 列有 177 个洞。`df["Age"] < 18` 遇到洞不报错，**老老实实返回 `False`**。
+
+所以 `df["is_child"].sum()` = 113，指的是「**有年龄记录** 且 小于 18」的人数 —— 那 177 个洞被静悄悄排除在外了。
+
+> ⚠️ **筛之前先 `info()` 看有没有洞。** 少了多少行，心里得有数。
+
+**② `value_counts()` 默认把洞藏起来**
+
+```python
+print(df["fare_level"].value_counts())
+```
+
+```
+便宜    321
+中     321
+贵     181
+土豪     53
+```
+
+**加起来 876，不是 891。少了 15 个。**
+
+那 15 位票价 = 0 的乘客掉出了 `bins`、变成了 `NaN` —— 但 `value_counts()` 一个字没说。
+
+加个参数就能看见：
+
+```python
+print(df["fare_level"].value_counts(dropna=False))
+```
+
+```
+便宜     321
+中      321
+贵      181
+土豪     53
+NaN     15      ← 藏起来的 15 个
+```
+
+321 + 321 + 181 + 53 + 15 = **891** ✅
+
+> 🔑 **跟 `info()` 不一样**：`info()` 主动报告「714 non-null，有 177 个洞」；`value_counts()` **默认闭嘴**（参数叫 `dropna=True`）。
+>
+> **「统计了 891 个」和「给你看了 876 个」是两回事。**
+
+**③ 昨天那个数对上了，今天这个数差点没对上** —— Day 2 的 `value_counts()` 是严丝合缝的 891，所以今天看到 876 时**要自己起疑**。**能加得上的数才是可信的数。**
 
 ## Day 4 · 汇总统计（groupby）
 
