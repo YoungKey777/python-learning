@@ -15,7 +15,7 @@
 | 1   | [01 数据结构](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/01_table_oriented.html) + [02 读写](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/02_read_write.html) | 读 titanic → `head/info/describe` → 写回 csv | ✅ 六个动作全跑通；写回后重读 `(891, 12)` 对得上 |
 | 2   | [03 选取筛选](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/03_subset_data.html)                                                                                                                    | `loc`/`iloc`/布尔索引：筛出"女性且票价 > 30"          | ✅ 选列/筛行/loc/iloc 全跑通；筛出"女性且票价>30" = `(113, 12)` |
 | 3   | [05 派生新列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/05_add_columns.html)                                                                                                                    | 向量化算 family_size、票价分箱（戒 for 循环）           | ✅ 向量化 / 新列 / `pd.cut` 分箱全跑通；321+321+181+53+NaN 15 = 891 |
-| 4   | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html)                                                                                                           | `groupby`：按舱位 × 性别算生存率                    | ⬜                                                                          |
+| 4   | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html)                                                                                                           | `groupby`：按舱位 × 性别算生存率                    | ✅ groupby 全跑通；size/count 拆出 891 / 714 / 177，生存率 女 0.742 男 0.189 |
 | 5   | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html)                                                                                                            | `pivot`/`melt` 宽长互转                       | ⬜                                                                          |
 | 6   | [08 合并表](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/08_combine_dataframes.html)                                                                                                              | `concat`/`merge` 把两张表拼起来                  | ⬜                                                                          |
 | 7   | [09 时间序列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/09_timeseries.html) ★                                                                                                                   | `resample` 日→月 + `rolling` 20 日均线         | ⬜                                                                          |
@@ -714,7 +714,133 @@ NaN     15      ← 藏起来的 15 个
 
 ## Day 4 · 汇总统计（groupby）
 
-> 待填：一句话 / 3 个关键操作 / 踩的坑
+> **一句话**：**「按 ___ 分，算 ___」** —— `groupby` 把一张表**拆成几堆**，每堆各算各的，再拼回来。
+>
+> 🔗 对照：ArcGIS 属性表里的「Summary Statistics」—— 选一个**分类字段**，再选一个**统计字段**。你早就干过，只是换了个写法。
+
+### 关键操作 ① 从「一个数」到「一堆数」
+
+```python
+print(df["Age"].mean())                      # 不分：一个数 → 29.69911764705882
+print(df.groupby("Sex")["Age"].mean())       # 按 Sex 分：两个数
+```
+
+```
+Sex
+female    27.915709
+male      30.726645
+Name: Age, dtype: float64
+```
+
+**「按什么分」的那个东西，分完就成了每行的姓名牌。** 门牌从 `0, 1, 2...` 变成了 `female` / `male`。
+
+跟 Day 2 的 `value_counts()` 对照：
+
+| | 门牌 | `Name:` | 顺序 |
+|---|---|---|---|
+| `value_counts()` | male / female | `count` | 按**数量**（577 > 314） |
+| `groupby("Sex")` | female / male | `Age` | 按**字母序** |
+
+**`value_counts()` 只能数人头；`groupby` 想算什么算什么** —— 这就是它多出来的本事。
+
+### 关键操作 ② 拆开看：`size()` vs `count()`
+
+```python
+print(df.groupby("Sex")["Age"].size())     # 每堆几行
+print(df.groupby("Sex")["Age"].count())    # 每堆有几个「有值」的
+```
+
+```
+size()   →  female 314   male 577     合计 891
+count()  →  female 261   male 453     合计 714
+差       →  female  53   male 124     合计 177
+```
+
+**三个数全对上了** —— 891 是 Day 2 `value_counts()` 那个数，714 和 177 是 Day 1 `info()` 里的 `Age 714 non-null` 和那批洞。
+
+| | 数什么 |
+|---|---|
+| `size()` | 这堆**一共几行**（管你有没有洞） |
+| `count()` | 这堆里**有几个「有值」的**（洞不算） |
+
+> 🧠 **`groupby` 的真正本事：把「一个总数」拆成「一堆分项」。**
+>
+> Day 1 只知道「**有** 177 个洞」；今天知道「洞**在哪**」—— 女 53、男 124。
+>
+> 而且**分项加起来必须等于总数**。对上了，说明你分对了 —— **这是最好的自检。**
+
+### 关键操作 ③ 0/1 列的平均 = 比率
+
+```python
+print(df.groupby("Sex")["Survived"].mean())
+```
+
+```
+Sex
+female    0.742038
+male      0.188908
+Name: Survived, dtype: float64
+```
+
+**`Survived` 只有 0（没活）和 1（活了）** —— 所以它的平均，就是**活下来的比例**，也就是**生存率**。
+
+Day 3 那句「`True` 就是 1，`False` 就是 0」，在这儿结出了果。
+
+### 关键操作 ④ 多列分组：门牌分两层
+
+```python
+print(df.groupby(["Sex", "Pclass"])["Survived"].mean())
+```
+
+```
+Sex     Pclass
+female  1         0.968085
+        2         0.921053
+        3         0.500000
+male    1         0.368852
+        2         0.157407
+        3         0.135447
+Name: Survived, dtype: float64
+```
+
+- **方括号里变成列表** —— 因为要按**两样**分
+- **门牌分了两层**（叫 **MultiIndex**）：外层 `Sex`，内层 `Pclass`。`female` 只写一次，下面两行空着 —— 那是 pandas 在说「**沿用上面的**」
+- **谁在外层，看你列表里的先后** —— `["Sex", "Pclass"]` 先 Sex 后 Pclass
+
+**为什么要按两样分？看这组对比：**
+
+| | 只按性别 | 按性别 × 舱位 |
+|---|---|---|
+| **女性** | **0.742** | 头等 **0.968** ／ 二等 0.921 ／ 三等 **0.500** |
+| **男性** | 0.189 | 头等 0.369 ／ 二等 0.157 ／ 三等 0.135 |
+
+> 💡 **`0.742` 这个数，把 `0.968` 和 `0.500` 平均掉了。**
+>
+> 同样是女性，**头等舱和三等舱的生存率差了一倍**。只按性别分组，这个差别**根本看不见**。
+>
+> **分组分得越细，被平均值掩盖的东西就越少。**
+
+**而且能反着拼回去** —— 6 个分项按各自人数加权，正好合回 `0.742` 和 `0.189`。就是刚才那 177 个洞的同一条道理：**分项加起来必须等于总数。** 想自己验：
+
+```python
+print(df.groupby(["Sex", "Pclass"])["Survived"].size())   # 每堆几个人
+```
+
+### 踩的坑
+
+**① `.mean()` 默认跳过洞** —— `df["Age"].mean()` = 29.699，是 **714 个人**的平均，不是 891 个。参数叫 `skipna=True`，**跳过而且不告诉你**。
+
+**② 「洞」这个主题，今天第三次出现：**
+
+| 什么时候 | pandas 对洞做了什么 |
+|---|---|
+| Day 3 · `df["Age"] < 18` | 洞比出 `False`，**悄悄排除** |
+| Day 3 · `value_counts()` | 洞**藏起来不显示** |
+| Day 4 · `.mean()` | 洞**跳过不参与计算** |
+
+> 🧠 **规律：pandas 遇到洞的默认动作是「静悄悄跳过」。** 不报错、不警告、不提醒 —— **你得自己知道它在跳。**
+
+**③ `groupby` 的门牌顺序和 `value_counts()` 不一样** —— 一个按**字母序**（female 在前），一个按**数量**排（male 在前）。别因为它俩数字一样就以为是一回事。
 
 ## Day 5 · 表变形（pivot / melt）
 
