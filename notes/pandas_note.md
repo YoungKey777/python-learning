@@ -16,7 +16,7 @@
 | 2   | [03 选取筛选](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/03_subset_data.html)                                                                                                                    | `loc`/`iloc`/布尔索引：筛出"女性且票价 > 30"          | ✅ 选列/筛行/loc/iloc 全跑通；筛出"女性且票价>30" = `(113, 12)` |
 | 3   | [05 派生新列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/05_add_columns.html)                                                                                                                    | 向量化算 family_size、票价分箱（戒 for 循环）           | ✅ 向量化 / 新列 / `pd.cut` 分箱全跑通；321+321+181+53+NaN 15 = 891 |
 | 4   | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html)                                                                                                           | `groupby`：按舱位 × 性别算生存率                    | ✅ groupby 全跑通；size/count 拆出 891 / 714 / 177，生存率 女 0.742 男 0.189 |
-| 5   | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html)                                                                                                            | `pivot`/`melt` 宽长互转                       | ⬜                                                                          |
+| 5   | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html)                                                                                                            | `pivot`/`melt` 宽长互转                       | ✅ melt / pivot 互转全跑通；1035×3=3105 对上；pivot_table = groupby + 矩阵（实测同值） |
 | 6   | [08 合并表](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/08_combine_dataframes.html)                                                                                                              | `concat`/`merge` 把两张表拼起来                  | ⬜                                                                          |
 | 7   | [09 时间序列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/09_timeseries.html) ★                                                                                                                   | `resample` 日→月 + `rolling` 20 日均线         | ⬜                                                                          |
 | 8   | 收口                                                                                                                                                                                                                                  | 完整走一遍"读 CSV → 统计 → 出结论"，脚本存 `code/`       | ⬜                                                                          |
@@ -844,7 +844,133 @@ print(df.groupby(["Sex", "Pclass"])["Survived"].size())   # 每堆几个人
 
 ## Day 5 · 表变形（pivot / melt）
 
-> 待填：一句话 / 3 个关键操作 / 踩的坑
+> **一句话**：同一份数据能「躺」成两种形状 —— **宽表**（列 = 对象）和**长表**（一行一条记录）。`melt` 把宽掰长，`pivot` 把长拼宽。
+>
+> 🔗 对照：**宽表 = 行情表**（一列一只票，好比、好画图）；**长表 = 数据库里的 tick 表**（一行一条记录，好喂给 `groupby`）。**数据到你手上的形状，往往不是你要用的形状。**
+
+### 关键操作 ① 先认形状
+
+| 文件 | 形状 | 哪种 |
+|---|---|---|
+| `air_quality_no2.csv` | (1035, 4) | **宽表** —— 列 = 三个监测站 |
+| `air_quality_no2_long.csv` | (2068, 7) | **长表** —— 一行一条记录 |
+
+- **宽表**：城市名当**列名**（`station_antwerp` / `station_paris` / `station_london`）
+- **长表**：城市名变成**一列的值**（`city` / `location`）
+
+🔑 **长表行数 = 宽表行数 × 被摊平的列数**
+
+### 关键操作 ② `melt`：宽 → 长
+
+```python
+no2_melted = no2.melt(
+    id_vars=['datetime'],                                            # 哪一列「站着不动」
+    value_vars=['station_antwerp','station_paris','station_london'],  # 哪几列要被「摊平」
+    var_name='station',                                               # 摊平后：原来的【列名】放这
+    value_name='no2'                                                  # 摊平后：原来的【值】放这
+)
+print(no2_melted.shape)      # (3105, 3)
+```
+
+**1035 × 3 = 3105** —— 那条规矩成立。
+
+**这四个参数名不用背** —— `名字=值` 这个写法里：
+
+| | 谁说了算 | 能不能改 |
+|---|---|---|
+| **等号左边**（`id_vars` / `var_name`） | **pandas 定死的** | ❌ 拼错一个字母就报错 |
+| **等号右边**（`'datetime'` / `'station'`） | **你自己给的** | ✅ 叫什么都行 |
+
+（Day 3 的 `labels=["便宜","中","贵","土豪"]` 同一个道理 —— 那四个中文词也是**你**告诉 pandas 的。）
+
+这个写法叫**关键字参数**。而且名字有规律：
+
+```
+id_vars   value_vars     ← 带 s = 复数 = 一批列（你【手里有的】）
+var_name  value_name     ← 没 s = 单数 = 一个名字（你【要起的】）
+```
+
+> **「进去一堆，出来一个名。」**
+
+**而且 `value_vars` 不写的话，pandas 默认把「剩下的列全摊平」** —— 最常用的写法只有 `id_vars` 一个参数。
+
+**melt 出来是「按列一块块铺」的：**
+
+```
+第    0~1034 行   全是 station_antwerp
+第 1035~2069 行   全是 station_paris
+第 2070~3104 行   全是 station_london
+```
+
+（这就是为什么长表文件里「London 从第 1099 行才开始」—— 见下面坑 ①。）
+
+**长表里 `datetime` 不再唯一** —— 同一个时间会出现 3 次（每个站一次）。**长表的「一行」= 一条观测记录**，要说清是哪一条，得 `(datetime, station)` 两个一起。
+
+### 关键操作 ③ `pivot`：长 → 宽
+
+```python
+no2_back = no2_melted.pivot(
+    index='datetime',      # 拿哪一列当【新门牌】
+    columns='station',     # 拿哪一列的值当【新列名】
+    values='no2'           # 格子里的数字从哪来
+)
+print(no2_back.shape)      # (1035, 3)  ← 不是 (1035, 4)！
+```
+
+**为什么少一列？** `index='datetime'` 把 `datetime` 变成了**门牌** —— Day 1 那条规矩又来了：**index 不占数据列的位置**。
+
+（想补回来：`.reset_index()` —— `set_index` 的反面，补完就是 `(1035, 4)`。）
+
+⚠️ **`pivot` 会按字母序重排列**：原来 `antwerp → paris → london`，转回来变成 `antwerp → london → paris`。**别默认列还在老位置。**
+
+**宽 → 长 → 宽，转一圈回来，数据零损失。**
+
+### 关键操作 ④ `pivot_table`：搬家 + 顺手算
+
+```python
+aq = pd.read_csv('pandas/data/air_quality_long.csv')
+
+aq.pivot_table(
+    index="location",       # 门牌放什么
+    columns="parameter",    # 列放什么
+    values="value",         # 格子里的数从哪来
+    aggfunc="mean"          # ← 重复的格子里，怎么办
+)
+```
+
+```
+parameter                 no2       pm25
+location                                
+BETR801             26.950920  23.169492
+FR04014             29.374284        NaN
+London Westminster  29.740050  13.443568
+```
+
+- **`pivot` 只能「搬家」；`pivot_table` 能「顺便算一下」（`aggfunc`）**
+- 每个格子里其实有**上千行**（每小时一条）：BETR801 的 no2 是 **163 小时**的平均，FR04014 的 no2 是 **1676 小时**的平均 —— **样本量差了 10 倍**
+
+🔑 **`pivot_table` = Day 4 的 `groupby` + 把结果摆成矩阵 —— 实测一模一样，一个数字不差：**
+
+```python
+aq.pivot_table(index="location", columns="parameter", values="value", aggfunc="mean")
+aq.groupby(["location", "parameter"])["value"].mean().unstack()
+```
+
+> **Day 4 学的 `groupby`，Day 5 换了个姿势又出现了一次。**
+
+### 踩的坑
+
+**① `head()` 会骗你** —— 长表是**按块排**的（同一个城市的行挤在一起），`head(3)` 只能看见第一块。**`head()` 是「前 5 行」，不是「每类各 5 行」。** 想看全貌得用 `value_counts()` / `groupby()`。
+
+**② `NaN` 的三种来源，今天凑齐了：**
+
+| 来源 | 例子 |
+|---|---|
+| ① **测了但没记上** | titanic 的 `Age`（177 个洞） |
+| ② **算式里掉出去** | Day 3 的 `pd.cut`，票价 = 0 的掉出边界（15 个） |
+| ③ **压根没有这种组合** | 上面 `FR04014 × pm25` —— 巴黎那个站**根本没有 pm25 这一项** |
+
+**③ 真实数据的名字是乱的** —— 同一座城市三种拼法：宽表 `station_antwerp` ／ 长表 `Antwerpen`（多个 `en`）／ `London Westminster`（带空格）／ `FR04014`（一个编号）。**以后 `merge` 两张表，这里当场翻车。**
 
 ## Day 6 · 合并表（concat / merge）
 
