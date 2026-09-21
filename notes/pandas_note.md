@@ -17,7 +17,7 @@
 | 3   | [05 派生新列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/05_add_columns.html)                                                                                                                    | 向量化算 family_size、票价分箱（戒 for 循环）           | ✅ 向量化 / 新列 / `pd.cut` 分箱全跑通；321+321+181+53+NaN 15 = 891 |
 | 4   | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html)                                                                                                           | `groupby`：按舱位 × 性别算生存率                    | ✅ groupby 全跑通；size/count 拆出 891 / 714 / 177，生存率 女 0.742 男 0.189 |
 | 5   | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html)                                                                                                            | `pivot`/`melt` 宽长互转                       | ✅ melt / pivot 互转全跑通；1035×3=3105 对上；pivot_table = groupby + 矩阵（实测同值） |
-| 6   | [08 合并表](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/08_combine_dataframes.html)                                                                                                              | `concat`/`merge` 把两张表拼起来                  | ⬜                                                                          |
+| 6   | [08 合并表](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/08_combine_dataframes.html)                                                                                                              | `concat`/`merge` 把两张表拼起来                  | ✅ concat 上下摞/左右拼全跑通；merge 四种 how 对账 3447/5272/3452/5277；亲手造出「形状全对、内容全空」的废表 |
 | 7   | [09 时间序列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/09_timeseries.html) ★                                                                                                                   | `resample` 日→月 + `rolling` 20 日均线         | ⬜                                                                          |
 | 8   | 收口                                                                                                                                                                                                                                  | 完整走一遍"读 CSV → 统计 → 出结论"，脚本存 `code/`       | ⬜                                                                          |
 
@@ -974,7 +974,185 @@ aq.groupby(["location", "parameter"])["value"].mean().unstack()
 
 ## Day 6 · 合并表（concat / merge）
 
-> 待填：一句话 / 3 个关键操作 / 踩的坑
+> **一句话**：`concat` 是**物理拼接** —— 按列名（上下）或行号（左右）把两张表对齐，**不看内容**；`merge` 是**按共同列配对** —— 就是数据库的 JOIN，**配不上的看 `how=` 决定**。
+>
+> 🔗 对照：**`merge` = ArcGIS 的 Join**（按一个字段把两张表接起来）。**量化场景**：行情表 + 财报表，按**股票代码** `merge` —— 代码对不上，财报就是空的。
+
+### 关键操作 ① `concat`：上下摞（`axis=0`）—— 行变多
+
+```python
+pm25 = aq[aq["parameter"] == "pm25"]     # (1825, 7)
+no2  = aq[aq["parameter"] == "no2"]      # (3447, 7)
+
+aq_back = pd.concat([pm25, no2])
+print(aq_back.shape)      # (5272, 7)
+```
+
+**1825 + 3447 = 5272** —— 一行不多一行不少。
+
+🔑 **`concat` 是「按你列表里的顺序，一个接一个摞下去」** —— **不排序、不去重、不检查内容、不检查对不对得上。**
+
+证据（实测）：`pd.concat([pm25, no2])` 和 `pd.concat([no2, pm25])` 打出来**顺序不一样**。**它完全听你的，你对它错它也照做。**
+
+（顺带解释了另一件事：`air_quality_long.csv` 前 1825 行全是 pm25，`no2` 从第 1825 行才开始。）
+
+### 关键操作 ② `concat(axis=1)`：左右拼 —— 列变多，按【行号】对齐
+
+```python
+print(pd.concat([aq[["parameter", "value"]].head(3),
+                 params[["id", "name"]].head(3)], axis=1))
+```
+
+```
+   parameter  value   id name
+0       pm25   18.0   bc   BC
+1       pm25    6.5   co   CO
+2       pm25   18.5  no2  NO2
+```
+
+**左边是安特卫普的 pm25 浓度，右边是大气的化学式说明 —— 两件毫不相干的事，并排坐在一起，中间连条分隔线都没有。**
+
+🔑 **三种拼法，对齐的依据完全不同：**
+
+| | 按什么对齐 | 对不上怎么办 |
+|---|---|---|
+| `concat(axis=0)` 上下摞 | **列名** | 缺的列填洞 |
+| `concat(axis=1)` 左右拼 | **行号** | 缺的行填洞 |
+| `merge` | **内容（键）** | 看 `how=` |
+
+**`concat(axis=1)` 连「键」这个概念都没有 —— 所以它连「配不上」的机会都没有。**
+
+> **只有当你 100% 确定两张表每一行严格一一对应时，才能用 `axis=1`**（比如同一个 `df` 拆出来的两半）。别的场合，用 `merge`。
+
+### 关键操作 ③ `merge`：按共同列配对
+
+```python
+params = pd.read_csv('pandas/data/air_quality_parameters.csv')   # (7, 3)
+
+merged = aq.merge(
+    params,
+    left_on="parameter",     # 左边这张表，用哪一列去配
+    right_on="id"            # 右边这张表，用哪一列来对
+)
+print(merged.shape)          # (5272, 10)
+print(merged.head(3))
+```
+
+- **行数不变**（5272 行全配上了）；**列数 +3**（`params` 的 `id` / `description` / `name`）
+- 🔑 **两边键名不同（`parameter` ≠ `id`）→ 两列都保留，内容重复**（`no2` 和 `no2` 各占一列）
+- 键名**一样**时可以只写 `on="列名"`，不用 `left_on` / `right_on`
+
+（输出里中间的 `...` 是 pandas 显示不下折叠了中间几列，**不是数据丢了**。）
+
+### 关键操作 ④ `how=`：配不上的怎么办
+
+把对照表里的 `pm25` 删掉，故意制造「配不上」：
+
+```python
+params_cut = params[params["id"] != "pm25"]      # (6, 3)
+
+for how in ["inner", "left", "right", "outer"]:
+    r = aq.merge(params_cut, left_on="parameter", right_on="id", how=how)
+    print(f"{how:6} {r.shape}")
+```
+
+先把两边的家底摆出来：
+
+```
+params_cut 的 6 个键：  bc   co   no2   o3   pm10   so2
+aq        的 2 个键：        no2                         pm25
+                              ↑
+                         唯一的交集
+```
+
+| 这批数据 | 有多少行 | 谁有 |
+|---|---|---|
+| `no2` | 3447 | **两边都有** |
+| `pm25` | 1825 | **只有 `aq` 有** |
+| `bc` / `co` / `o3` / `pm10` / `so2` | 5 个键 | **只有 `params_cut` 有** |
+
+四个 `how` 就是在三堆里挑：
+
+| `how` | 挑谁 | 算式 | 实测 |
+|---|---|---|---|
+| `inner` **（默认）** | 只要**中间**那堆 | 3447 | **3447** ✅ |
+| `left` | `aq` 的全要 | 3447 + 1825 | **5272** ✅ |
+| `right` | `params_cut` 的键全要 | 3447 + 5 | **3452** ✅ |
+| `outer` | **三堆全要** | 3447 + 1825 + 5 | **5277** ✅ |
+
+**四个数全对上了** —— 这就是 Day 4 那条「**分项加起来必须等于总数**」的自检，今天第四次派上用场。**`merge` 完发现行数不对，先干这件事：把行数拆开对账。**
+
+**`how=` 怎么读：说的是「以谁为准」。** `how="left"` = 以**左边那张表**为准，左边一行都不能少。
+
+🔑 **「丢行」和「填洞」是同一件事的两面 —— 你必须选一个：**
+
+```python
+kept = aq.merge(params_cut, left_on="parameter", right_on="id", how="left")
+print("kept:", kept.shape)       # (5272, 10)
+print(kept[kept["parameter"] == "pm25"].head(3))
+```
+
+```
+  parameter  value   unit   id description name
+0      pm25   18.0  µg/m³  NaN         NaN  NaN
+1      pm25    6.5  µg/m³  NaN         NaN  NaN
+2      pm25   18.5  µg/m³  NaN         NaN  NaN
+```
+
+**`how="inner"` 保住内容、丢行；`how="left"` 保住行、内容变洞。** 以后把行情表和财报表按代码接起来，某只票财报缺了 —— **你要删掉整只票，还是留着、财报那几列空着？没有标准答案，但你必须知道自己在选哪个。**
+
+### 踩的坑
+
+**① `merge` 的失败方式是「沉默」** ← 今天最要命的一条
+
+```python
+aq2 = pd.read_csv('pandas/data/air_quality_long.csv')
+aq2["parameter"] = aq2["parameter"].str.upper()          # 全变大写：PM25 / NO2
+
+bad = aq2.merge(params, left_on="parameter", right_on="id", how="left")
+print(bad.shape)                                          # (5272, 10)  ← 形状全对
+print(bad[["id", "description", "name"]].notna().sum())   # 0 / 0 / 0  ← 内容全空
+```
+
+**一张形状正确、内容全空的表。** 根因只是 `PM25` ≠ `pm25` —— **差一个大小写**。
+
+> **`merge` 不会说「我配不上」。它不报错、不警告、不提示，只给你一张看起来正常的空表。**
+> **它也不检查「这两个名字说的是不是同一件事」—— 只做字符串比对。差一个空格、一个大小写、一个复数 `s`，就是两个东西。**
+
+**所以定一条死规矩 —— `merge` 完必须查三样：**
+
+| 查什么 | 看的是 | 这次揪得出来吗 |
+|---|---|---|
+| `.shape` | 行数列数对不对 | ❌ 全对，照样是废的 |
+| `.head()` | 里面长什么样 | ⚠️ 能看见，但只有前 5 行 |
+| **`右表某列.notna().sum()`** | **到底配上了几行** | ✅ **就是它揪出来的** |
+
+**第三条是唯一可靠的那条。读法：配上了几行，就该等于你预期的行数。**
+
+**② 洞在哪边，就说明哪边没有**
+
+| 情况 | 左（`aq` 的列） | 右（`params` 的列） |
+|---|---|---|
+| `how="left"` → `pm25` 那 1825 行 | 满 | **洞** |
+| `how="right"` → 那 5 个孤儿键 | **洞** | 满 |
+
+- 左边空 → **`aq` 里压根没有这行**（`bc` / `co` / `o3` / `pm10` / `so2`，`aq` 没测过）
+- 右边空 → **`params` 里没有这行**（`pm25`，被 `params_cut` 删了）
+
+> **`merge` 完看见一片洞，第一反应不该是「数据坏了」，而是顺着洞的方向问：是哪张表缺东西？**
+
+（Day 5 那张「洞的三种来源」表，今天该添第四行 —— **④ 合并时右边没有这个键**。前三种是 pandas 背着你干的，**这一种是你自己用 `how=` 选的**。）
+
+**③ `.shape` 和 `.head()`，只打一个都会骗你**
+
+| | 告诉你什么 |
+|---|---|
+| `.shape` | 变了**多少** |
+| `.head()` | 变成了**什么样** |
+
+今天这场「`params_cut` 明明删了 pm25，怎么打印出来还有 pm25」的困惑，根源就是**只打了其中一个**。
+
+**④ `head()` 第二次骗人** —— `params` 有 **7 行**，`.head()` 只给 **5 行**，**正好把 `pm25` 和 `so2` 藏了**。（Day 5 刚学过这条，隔一天又撞上。）
 
 ## Day 7 · 时间序列（DatetimeIndex / resample / rolling）★
 
