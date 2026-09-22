@@ -96,8 +96,8 @@ above35 = df[mask]         # ② 执行名单：True 的行留下，整行都留
 # print(above35.loc[1, "Age"])  # 门牌号 1
 # print(above35.loc[0, "Age"])  # 门牌号 0 ← 这行会报错
 
-mask3 = (df["Sex"] == "female") & (df["Fare"] > 30)
-# print(mask3.shape)
-# print(df[mask3].shape)
+# mask3 = (df["Sex"] == "female") & (df["Fare"] > 30)
+# # print(mask3.shape)
+# # print(df[mask3].shape)
 
-print(df["Sex"].value_counts())
+# print(df["Sex"].value_counts())

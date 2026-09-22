@@ -18,7 +18,7 @@
 | 4   | [06 汇总统计](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/06_calculate_statistics.html)                                                                                                           | `groupby`：按舱位 × 性别算生存率                    | ✅ groupby 全跑通；size/count 拆出 891 / 714 / 177，生存率 女 0.742 男 0.189 |
 | 5   | [07 表变形](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/07_reshape_table_layout.html)                                                                                                            | `pivot`/`melt` 宽长互转                       | ✅ melt / pivot 互转全跑通；1035×3=3105 对上；pivot_table = groupby + 矩阵（实测同值） |
 | 6   | [08 合并表](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/08_combine_dataframes.html)                                                                                                              | `concat`/`merge` 把两张表拼起来                  | ✅ concat 上下摞/左右拼全跑通；merge 四种 how 对账 3447/5272/3452/5277；亲手造出「形状全对、内容全空」的废表 |
-| 7   | [09 时间序列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/09_timeseries.html) ★                                                                                                                   | `resample` 日→月 + `rolling` 20 日均线         | ⬜                                                                          |
+| 7   | [09 时间序列](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/09_timeseries.html) ★                                                                                                                   | `resample` 日→月 + `rolling` 20 日均线         | ✅ `to_datetime` / `.dt` / `DatetimeIndex` / `resample` / `rolling` 全跑通；2068→1033 对账；`ME` 与 `MS` 数值全同、只有标签不同；rolling 的洞传染把 BETR801 打到只剩 23 行 |
 | 8   | 收口                                                                                                                                                                                                                                  | 完整走一遍"读 CSV → 统计 → 出结论"，脚本存 `code/`       | ⬜                                                                          |
 
 - **挂账**：[04 画图](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/04_plotting.html) 并进阶段 3 可视化一起学；[10 文本数据](https://pandas.pydata.org/pandas-docs/version/2.3/getting_started/intro_tutorials/10_text_data.html) 选学
@@ -1156,7 +1156,231 @@ print(bad[["id", "description", "name"]].notna().sum())   # 0 / 0 / 0  ← 内�
 
 ## Day 7 · 时间序列（DatetimeIndex / resample / rolling）★
 
-> 待填：一句话 / 3 个关键操作 / 踩的坑
+> **一句话**：**先让 pandas 认出「这是时刻」**（`to_datetime`），**再把时间抬成门牌**（`pivot` → `DatetimeIndex`）—— 门牌一立起来，`resample`（按时间段分组）和 `rolling`（滑动窗口）才能上场。
+>
+> 🔗 对照：**`DatetimeIndex` ≈ ArcGIS 里给图层建时间字段 + 按时间排好序**（顺序不对，后面全是错的）。**量化场景**：日线 → 周线/月线（`resample`）、20 日均线（`rolling`）—— 全是这两下。
+
+### 关键操作 ① `pd.to_datetime()`：把「文本」变成「时刻」
+
+```python
+aq = pd.read_csv('pandas/data/air_quality_no2_long.csv')      # 2068 行
+aq = aq.rename(columns={"date.utc": "datetime"})              # 改标签，数据不动
+
+print(aq["datetime"].dtype)     # object                ← 转换前
+aq["datetime"] = pd.to_datetime(aq["datetime"])
+print(aq["datetime"].dtype)     # datetime64[ns, UTC]   ← 转换后
+print(aq["datetime"].max() - aq["datetime"].min())   # 44 days 23:00:00
+```
+
+**这是第 6 种 dtype**（前五种：`int64` / `float64` / `object` / `bool` / `category`）。
+
+🔑 **`object` 这个词是关键** —— 转换之前，这一列时间**跟「张三」「北京」没有任何区别，就是一串字符**。所以它不能比大小、不能相减、不能取月份。
+
+名字拆开：`datetime64`（时间）· `[ns]`（精度到纳秒）· `, UTC`（**带时区**，数据自带的）。
+
+**两个时刻相减得到 `Timedelta`（时间差）** —— `44 days 23:00:00` 就是这个数据集的长度（45 天不到）。
+
+⚠️ **Jupyter 显示 `repr`，`print()` 显示 `str`** —— 教程里写 `Timedelta('44 days 23:00:00')`（带壳），`.py` 里 `print()` 打出来只有 `44 days 23:00:00`（没壳）。**同一个东西，两种显示。**
+
+### 关键操作 ② `.dt` 访问器：从一列时间里抠出数
+
+```python
+aq["month"]   = aq["datetime"].dt.month      # 6
+aq["hour"]    = aq["datetime"].dt.hour       # 0 / 23 / 22 / 21 …
+aq["weekday"] = aq["datetime"].dt.weekday    # 4 = 周五
+```
+
+🔑 **`.dt` 是「时间版的 `.str`」** —— Day 6 用过 `aq["parameter"].str.upper()`，那个 `.str` 是**文本列的取列器**；`.dt` 是**时间列的取列器**。两个都是 accessor（入口），只是进的列类型不同。
+
+**为什么要拆？** —— `groupby("datetime")` **不会报错，但每个组只有 1 行**（每个时刻都唯一，分组等于没分）。拆出 `month` / `hour` / `weekday` 之后，才有**少数几个值、每个值一堆行**，这才有东西可算。
+
+⚠️ **`weekday` 的编码是 pandas 的约定，不是自然语言：周一 = 0 … 周日 = 6。**（2019-06-21 是 Friday → 4，实测对上。）
+
+```python
+by_day = aq.groupby([aq["datetime"].dt.weekday, "location"])["value"].mean()
+print(by_day.to_string())        # 7 × 3 = 21 行
+```
+
+**列表里混了两样**：`aq["datetime"].dt.weekday` 是 **Series**，`"location"` 是**字符串**（会去表里找同名列）。两种都能放。
+
+**列名 `datetime` 底下装的是「星期几」—— 因为 `.dt.weekday` 只换内容、不换名字**（见踩的坑 ⑤）。
+
+### 关键操作 ③ `pivot` + `DatetimeIndex`：时间从「一列」变成「门牌」
+
+```python
+no2 = aq.pivot(index="datetime", columns="location", values="value")
+print(no2.shape)     # (2068, 7)  →  (1033, 3)
+```
+
+| 参数 | 干什么 |
+|---|---|
+| `index=` | **谁当行标签** |
+| `columns=` | **把哪一列的值摊成好几列** |
+| `values=` | **格子里填什么** |
+
+**行数 2068 → 1033** —— 1033 是**不重复的时刻数**（`aq["datetime"].nunique()`）。同一个时刻的 3 个站，原来占 3 行，现在挤进 **1 行 3 格**。
+
+🔑 **`DatetimeIndex` 的两个福利：**
+
+| 福利 | 在 `aq` 上 | 在 `no2` 上 |
+|---|---|---|
+| 取时间属性 | `aq["datetime"].dt.year` | **`no2.index.year`** ← `.dt` 消失了 |
+| 切片 | `loc` 按标签切 | **`no2["2019-05-20":"2019-05-21"]`** ← **字符串直接切** |
+
+**为什么不用 `.dt` 了？** `.dt` 是「从**一列数据**里抠时间属性」的入口。现在时间**不在列里了 —— 它就是行标签本身**，直接点就行。
+
+⚠️ **`pivot` 顺手把 index 排序了** —— `no2.index.is_monotonic_increasing` = `True`；而原始长表 `aq` **没排序**（按站点分块、块内各自降序 → 整列既不升也不降）。**这是 `resample` / `rolling` 能跑的前提** —— 滚动平均顺序要是乱的，算出来就是垃圾。
+
+### 关键操作 ④ `resample`：`groupby` + 时间
+
+```python
+monthly = no2.resample("ME").max()      # (2, 3)
+daily   = no2.resample("D").mean()      # (46, 3)
+```
+
+🔑 **`resample` 就是你 Day 4 学的 `groupby`，只不过「按什么分」从「按一列的值」变成了「按时间段」。**
+
+| | `groupby` | `resample` |
+|---|---|---|
+| 按什么分 | 一列的值（站点、周几） | **时间段**（月、日、小时） |
+| 怎么给 | `by=["列名"]` | `"ME"` 这样的**频率字符串** |
+| 然后干什么 | **必须接一个动词** | **必须接一个动词** |
+| 结果行标签 | 分组的键 | **时间段的边界** |
+
+**频率字符串（本机实测，五个都无警告）：**
+
+| 写什么 | 意思 | 出来几行 | 对账 |
+|---|---|---|---|
+| `"ME"` | 月末 | 2 | 跨 2 个自然月 ✅ |
+| `"MS"` | 月初 | 2 | 同上，只换标签 |
+| `"W"` | 周 | 7 | 跨 7 周 ✅ |
+| `"D"` | 日 | 46 | 5月25天 + 6月21天 ✅ |
+| `"h"` | 小时 | 1080 | 44天23小时 + 1 ✅ |
+
+**`index.freq`**：`resample` 之前是 `None`（原始小时不等间隔、有洞，pandas 不敢说它规律），之后变成 `<MonthEnd>` —— **一张「体检报告」，记录这张表的时间间隔规律成什么样**。有了它，切片、时间偏移、补空档都变快。
+
+🔑 **同一份 `no2`，换五个字符串，出来五张大小完全不同的表 —— 频率是你选的，不是数据定的。**
+
+### 关键操作 ⑤ `rolling`：滑动窗口（教程里没有，按 roadmap 补）
+
+```python
+roll = no2.rolling(24).mean()
+print(roll.shape)     # (1033, 3)  ← 行数跟 no2 一样，没变
+```
+
+🔑 **三种「切法」摆一起：**
+
+| | 怎么切 | 结果行数 |
+|---|---|---|
+| `groupby` | 按一列的值切 | 值的种类数 |
+| `resample` | 按时间段切（**互不重叠**） | 时间段数 |
+| **`rolling(24)`** | **开 24 格宽的窗口，一格一格往前滑** | **跟原表一样多** |
+
+**`rolling` 不切数据** —— 每滑一格吐一个值，所以**行数不变**。这就是量化说的**移动平均线（MA）**：5 日线、20 日线、60 日线全是它。
+
+**前 23 行全是 NaN** —— 第 0 行上面只有 23 个数，凑不满 24 个窗口。
+
+### 踩的坑
+
+**① 行标签是「时间段的代表」，不是「那天发生的事」** ← 今天最大的坑
+
+```python
+me = no2.resample("ME").max()    # 标签 2019-05-31 / 2019-06-30
+ms = no2.resample("MS").max()    # 标签 2019-05-01 / 2019-06-01
+```
+
+**实测：两张表的数值比到小数点后 10 位，全部相等。** 只有行标签不同。
+
+> **`2019-05-31` 不是「5 月 31 号那天」，它是「整个 5 月」这个时间段的代号。**
+
+**量化里天天踩**：月线数据的 index 是月末日期，但它代表整个月。月收益率是拿两个**月末**相减 —— 那是对的；以为「5 月 31 号那天出了什么事」，就错了。
+
+**② 字符串切片的终点会「补满那天」**
+
+```python
+no2["2019-05-20":"2019-05-21"]          # (48, 3)   终点 → 05-21 23:00
+no2["2019-05-20":"2019-05-21 00:00"]    # (25, 3)   终点 → 05-21 00:00
+```
+
+你写 `"2019-05-21"` 的语义是「**整个** 5 月 21 日」，pandas 就补到那天的最后一秒。
+
+> **给到「天」，pandas 就补满那一天；给到「小时」，它就不补。**
+
+**切完对账**：48 = 2 天 × 24 小时 ✅。
+
+**③ 洞会传染 —— `rolling` 默认「窗口里一个洞都不许有」**
+
+`min_periods` 默认**等于窗口大小**（24）：24 个格子里必须 24 个都有数，差一个就吐 NaN。**所以一个洞会污染后面 24 行。**
+
+| 站点 | 原始洞数 | `rolling(24).mean()` 后**有值的行数**（共 1033 行） |
+|---|---|---|
+| BETR801 | 938 | **23** ← 97.8% 是 NaN |
+| FR04014 | 29 | 820 |
+| London | 64 | 615 |
+
+（第 24 行只有 FR04014 有数：BETR801 的窗口里 22 个洞、London 2 个洞、FR04014 0 个洞。）
+
+**`min_periods=1` 是解药，但有代价：**
+
+```python
+no2.rolling(24, min_periods=1).mean()
+# 有值行数：BETR801 23 → 838 ；FR04014 820 → 1033 ；London 615 → 1017
+```
+
+**代价：前 23 行的「平均」只用了 1~23 个数。** 实测 `r2["FR04014"].iloc[0]` = 原始第 0 行**本身**（只用了 1 个数）—— **那不是 24 小时均线。**
+
+> **没有免费午餐：`min_periods` 小 → 数字多但前面是假的；大 → 数字真但前面全是洞。**
+
+**④ `KeyError` 是好事，`merge` 的沉默才可怕**（跟 Day 6 对着看）
+
+| | 名字打错时 | 危险吗 |
+|---|---|---|
+| `df["列名"]` | **`KeyError`** 当场炸，还告诉你第几行 | ✅ 安全 |
+| `merge(left_on=, right_on=)` | **沉默** —— 形状全对、内容全空 | ☠️ 最危险 |
+
+**为什么差这么多？** `merge` 是在**「找匹配」**——「找不到匹配」本身是个**合法结果**（交集本来就可能为空），所以它没理由报错。`df["列名"]` 是在**「点名要东西」**——没有就是没有。
+
+> **pandas 里「点名要东西」的操作会炸给你看；「找匹配」的操作会闷着不出声。**
+> **报错是好事。真正该怕的是不报错。**
+
+**⑤ 抬头名字会骗你 —— `datetime` 底下装的可能是「星期几」**
+
+`by_day` 第一层索引的**名字叫 `datetime`**，装的却是 **0~6 的 weekday**。根因：`.dt.weekday` **只换内容、不换名字**，源 Series 叫 `datetime`，pandas 一路照抄。
+
+**一行修法**：`by_day.rename_axis("weekday", axis=0)`。同理，`unstack()` 出来的表**左上角那个名字**也来自源 Series。
+
+**⑥ `print()` 一个 Series，左边那竖排永远不是数据**
+
+| 尾注长什么样 | 它是什么 |
+|---|---|
+| `Name: month, dtype: int32` | **Series**（一列） |
+| `[5 rows x 8 columns]` | **DataFrame**（一张表） |
+
+**`dtype` 前面带 `Name:` 的一定是 Series** —— 比数有几列快得多。
+
+今天连着栽两次：把 `by_day`（**两层标签 + 一个值**）看成「三列」、把 `aq["month"].head()`（**行号 + 值**）看成「两列」。
+
+**⑦ `head()` 第三次骗人** —— `aq.head()` 前 5 行**全在 6 月**，于是问「这表是不是只有 6 月？」。实际是 **5 月 1256 行、6 月 812 行**（按站点分块、块内降序，**5 月全在后半张表**）。
+
+**⑧ 两行表头别丢** —— `unstack()` / `pivot` 出来的表有**两行抬头**：上面一行归**列**，下面一行归**行标签**。左上角空着，因为它同时属于行和列。复制粘贴时最容易被吃掉的就是第一行。
+
+### 🔑 贯穿今天的一条线：样本量
+
+| 走到哪一步 | BETR801 还剩多少 |
+|---|---|
+| 分组求平均 | 每格只用了 **5~29** 个数（FR04014 是 130~156，**差 20 倍**） |
+| `pivot` 成宽表 | 那列 **938 / 1033 = 91% 是洞**（`1033 − 938 = 95` = 它原始行数） |
+| `rolling(24).mean()` | **只剩 23 行有值**（97.8% 是 NaN） |
+
+**同一个病，一层比一层严重。病根只有一个：那个监测站那段时间基本没在线。**
+
+> **看任何一个数字，先问：它是用几个样本算出来的？**
+
+- 因子回测里，IC 值永远跟样本数绑着看
+- 夏普比率永远跟回测年限绑着看
+- **单独一个数，没有意义**
+
+（教程自己在这段挂了个 `Danger`：「时间序列太短，结果没有代表性」—— 但它没告诉你「短」短在哪儿。）
 
 ## Day 8 · 收口实战
 
@@ -1168,6 +1392,8 @@ print(bad[["id", "description", "name"]].notna().sum())   # 0 / 0 / 0  ← 内�
 
 - **pandas 版本**：本机 2.3.3（`python -c "import pandas; print(pandas.__version__)"` 可查）；3.0 需 Python ≥3.11，暂不升
 - **数据不落盘就别谈分析**：教程里的数据先存 `pandas/data/`，练习全部读本地文件（省得每次联网 + 结果可复现）
+- **打印整张表**：省略号有**两个**开关，行由 `display.max_rows`（默认 60）管，列由 `display.expand_frame_repr`（默认 True）管 —— **不是 `display.width`**（实测设成 200 没用）。最快的一招是 `df.head().to_string()`，无视所有设置直接给全。⚠️ 但 2000 行打进终端没法看 —— **想全看就 `to_csv()` 导出用 Excel 开**。
+- **看尾注分辨 Series / DataFrame**：`Name: xxx, dtype: ...` → Series；`[N rows x M columns]` → DataFrame。
 
 ---
 *所属模块：[[python-for-quant/roadmap|roadmap]] 阶段 2（numpy + pandas）；相关笔记 [[notes/python_note|python_note]]*

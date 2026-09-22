@@ -27,7 +27,10 @@
 - **怎么练**：找一份真实数据（akshare/tushare 拉的历史行情，或自己课题的数据），做：清洗 → 算日收益率 → 滚动 20 日均线 → 按年汇总
 - **为什么**：分析工作 80% 的时间是"把数据摆成能算的样子"，就是 pandas
 - **检验标准**：能不用查资料完成"读 CSV → 算收益率 → 画图"全流程
-- **详细路线**：[[notes/pandas_note|pandas 学习笔记]] —— 官方 Getting Started 逐篇拆成 8 天，每天一篇 + 3 个动作重敲；教程数据已落盘 `pandas/data/`
+- **详细路线**：
+  - [[notes/numpy_note|numpy 学习笔记]] —— 5 天。官方没有 pandas 那样的 8 篇系列，所以是**按量化需要倒推**的；核心是「掀开 pandas 的盖子」
+  - [[notes/pandas_note|pandas 学习笔记]] —— 官方 Getting Started 逐篇拆成 8 天，每天一篇 + 3 个动作重敲；教程数据已落盘 `pandas/data/`
+- **顺序**：理想顺序是 **numpy 先、pandas 后**（numpy 是地基，`df["A"] + df["B"]` 底下就是它）。**但 pandas 已经走到 Day 6 了，所以实际走法是：先把 pandas Day 7~8 收完（只剩 2 天，别断在半路），再回头补这 5 天 numpy**
 
 ## 阶段 3：数据可视化（1 周）⬜ 核心
 
