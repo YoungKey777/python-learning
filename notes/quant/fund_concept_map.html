@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>基金 · 概念地图（上游 → 基金 → 下游）</title>
+
+<!--
+  纯静态页：无脚本、无交互，从头滚到尾即可。file:// 双击直接打开。
+  配套：《打开量化投资的黑箱》第1章阅读笔记（同文件夹 black_box.md / hedge_fund.md）。
+  上半：概念的上游/下游＝上位/下位（金融 → … → 宽客）；
+  下半：钱的上游/下游＝出资方 / 投向。
+-->
+
+<style>
+:root{
+  --bg:#f4f5f8; --card:#ffffff; --text:#20242e; --muted:#6a7180; --border:#e2e5ec;
+  --accent:#2f6fdb; --accent-soft:#e8effc;
+  --up:#b06f14; --up-soft:#faf1e2;
+  --dn:#1f7a56; --dn-soft:#e6f4ee;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12141b; --card:#1c1f29; --text:#e7e9f0; --muted:#9aa1b0; --border:#2d3240;
+    --accent:#6d8dff; --accent-soft:#232b40;
+    --up:#e0a458; --up-soft:#332715;
+    --dn:#5cc39a; --dn-soft:#17301f;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); line-height:1.75;
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14.5px;
+}
+.wrap{max-width:880px;margin:0 auto;padding:26px 20px 70px}
+h1{font-size:21px;margin:0 0 6px;letter-spacing:.2px}
+.lead{color:var(--muted);font-size:13.5px;margin:0 0 22px}
+
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:16px 20px;margin-bottom:16px;
+  box-shadow:0 1px 3px rgba(20,40,90,.05);
+}
+.card h2{margin:0 0 4px;font-size:16.5px}
+.card .sub{margin:0 0 12px;color:var(--muted);font-size:12.5px}
+p{margin:8px 0}
+ul{margin:6px 0;padding-left:20px}
+li{margin:4px 0}
+b{font-weight:700}
+.small{font-size:12.5px;color:var(--muted)}
+
+/* 顶部一句话总览 */
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:10px 0 4px}
+.chain .box{
+  border:1.5px solid var(--border);border-radius:9px;padding:7px 11px;
+  background:var(--bg);text-align:center;line-height:1.5;
+}
+.chain .box .t{font-weight:700;font-size:13px;display:block}
+.chain .box .d{color:var(--muted);font-size:11.5px;display:block}
+.chain .box.hl{border-color:var(--accent);background:var(--accent-soft)}
+.chain .arrow{color:var(--muted);font-size:15px}
+.chain .brk{flex-basis:100%;height:0}
+
+/* 概念阶梯 */
+.ladder{margin:6px 0 2px}
+.rung{
+  display:flex;gap:12px;align-items:flex-start;
+  border:1.5px solid var(--border);border-radius:10px;
+  padding:10px 14px;background:var(--bg);
+}
+.rung + .down{margin:2px 0}
+.rung .lv{
+  flex:none;width:26px;height:26px;border-radius:50%;margin-top:2px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--accent-soft);color:var(--accent);
+  font-weight:700;font-size:13px;
+}
+.rung .t{font-weight:700;font-size:14px}
+.rung .t .en{color:var(--muted);font-weight:400;font-size:12px;margin-left:6px}
+.rung .d{font-size:13px;margin-top:2px}
+.rung.hl{border-color:var(--accent);background:var(--accent-soft)}
+.down{text-align:center;color:var(--muted);font-size:15px;line-height:1.2}
+
+/* 三把刀 */
+.knives{margin:10px 0 2px}
+.knife{
+  border:1.5px dashed var(--border);border-radius:10px;
+  padding:9px 14px;margin:8px 0;background:var(--bg);
+}
+.knife .kt{font-weight:700;font-size:13.5px;margin-bottom:2px}
+.knife .kt .no{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{
+  border:1px solid var(--border);border-radius:999px;padding:2px 11px;
+  font-size:12.5px;background:var(--card);
+}
+.chip.strong{border-color:var(--accent);color:var(--accent);font-weight:700}
+
+/* 上游 / 下游（钱） */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:10px}
+@media (max-width:660px){ .two{grid-template-columns:1fr} }
+.money{border:1.5px solid var(--border);border-radius:10px;padding:12px 15px;background:var(--bg)}
+.money.up{border-left:4px solid var(--up)}
+.money.dn{border-left:4px solid var(--dn)}
+.money h3{margin:0 0 4px;font-size:14px}
+.money.up h3{color:var(--up)}
+.money.dn h3{color:var(--dn)}
+.money .tag{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+.mid{
+  text-align:center;color:var(--muted);font-size:12.5px;margin:10px 0 0;
+}
+
+.footer{color:var(--muted);font-size:12.5px;margin-top:22px;border-top:1px solid var(--border);padding-top:12px}
+.footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>基金 · 概念地图</h1>
+  <p class="lead">上游（上位概念）→ 基金 → 下游（下位概念 ／ 钱的去向）｜《打开量化投资的黑箱》第1章配套</p>
+
+  <div class="card">
+    <h2>先分清两种"上游/下游"</h2>
+    <p class="sub">"上游概念、下游概念"有两个读法，这张图两个都画：</p>
+    <ul>
+      <li><b>概念的上游 / 下游</b>＝上位概念 / 下位概念：基金<b>属于</b>什么，基金又<b>分</b>出什么 —— 第一、二节。</li>
+      <li><b>钱的上游 / 下游</b>＝钱从哪来 / 钱投到哪 —— 第三节。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>一、整条链一眼看完</h2>
+    <p class="sub">从最上位的"金融"一路走到本书的主角"宽客"：</p>
+    <div class="chain">
+      <div class="box"><span class="t">金融</span><span class="d">资金融通</span></div>
+      <span class="arrow">→</span>
+      <div class="box"><span class="t">资产管理</span><span class="d">替别人管钱（买方）</span></div>
+      <span class="arrow">→</span>
+      <div class="box"><span class="t">投资基金</span><span class="d">集合投资工具</span></div>
+      <span class="brk"></span>
+      <span class="arrow">→</span>
+      <div class="box"><span class="t">私募证券投资基金</span><span class="d">在中国的身份</span></div>
+      <span class="arrow">→</span>
+      <div class="box hl"><span class="t">对冲基金</span><span class="d">做空＋杠杆＋绝对收益</span></div>
+      <span class="arrow">→</span>
+      <div class="box"><span class="t">量化对冲基金</span><span class="d">用模型做决策</span></div>
+      <span class="arrow">→</span>
+      <div class="box"><span class="t">宽客</span><span class="d">做这件事的人</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>二、一节一节往下走</h2>
+    <p class="sub">每一层都比上一层更具体；箭头＝"属于……的一种"。</p>
+
+    <div class="ladder">
+      <div class="rung">
+        <div class="lv">1</div>
+        <div>
+          <div class="t">金融</div>
+          <div class="d">资金的融通：把"有闲钱没处投的人"和"缺钱要融资的人"对接起来。基金是这件事的一种组织方式。</div>
+        </div>
+      </div>
+      <div class="down">↓</div>
+
+      <div class="rung">
+        <div class="lv">2</div>
+        <div>
+          <div class="t">资产管理<span class="en">buy-side</span></div>
+          <div class="d">替别人管钱的行业。对面站着"卖方"：投行、券商——做经纪、承销、研究，赚手续费；<b>买方</b>才是真金白银下单买资产的人。宽客将来就坐在买方。</div>
+        </div>
+      </div>
+      <div class="down">↓</div>
+
+      <div class="rung">
+        <div class="lv">3</div>
+        <div>
+          <div class="t">投资基金</div>
+          <div class="d"><b>集合投资</b>：把很多人的钱凑成一个池子 → 交给专业管理人操作 → 赚了亏了按出资份额分摊。三个角色：出资人（<b>LP</b>，只出钱）／管理人（<b>GP</b>，管钱操盘）／托管机构（看着钱别乱动）。<br>
+          <span class="small">为什么存在：钱少请不起全职专业团队；钱凑一起才够分散风险。</span></div>
+        </div>
+      </div>
+      <div class="down">↓ 在"基金"这一层，往下切有三把常用的刀</div>
+
+      <div class="knives">
+        <div class="knife">
+          <div class="kt"><span class="no">刀一</span> 公募 / 私募 —— 谁来买、怎么募</div>
+          <div class="d"><b>公募</b>：谁都能买、门槛低（1元起）、监管最严、信息披露透明，一般只能做多、杠杆受限。<br>
+          <b>私募</b>：只卖给"合格投资者"（个人门槛：金融资产≥300万，或近三年年收入≥50万；单只基金认购≥100万），不能打广告；但监管松、手段自由——<b>能做空、能上杠杆、能玩衍生品</b>。</div>
+        </div>
+        <div class="knife">
+          <div class="kt"><span class="no">刀二</span> 投向 —— 钱买什么</div>
+          <div class="chips">
+            <span class="chip">股票型</span><span class="chip">债券型</span><span class="chip">混合型</span>
+            <span class="chip">货币型</span><span class="chip">商品</span><span class="chip">衍生品</span>
+          </div>
+        </div>
+        <div class="knife">
+          <div class="kt"><span class="no">刀三</span> 主动 / 被动 —— 怎么管</div>
+          <div class="d"><b>被动</b>：抄指数，不赌判断；<b>主动</b>：赌自己的研究能跑赢指数。<b>对冲基金全部是主动型</b>——它的整个卖点就是"我有别人没有的判断"。</div>
+        </div>
+      </div>
+
+      <div class="down">↓ 选"私募"＋"主动"，就走到：</div>
+
+      <div class="rung">
+        <div class="lv">4</div>
+        <div>
+          <div class="t">私募证券投资基金</div>
+          <div class="d">私募里投向公开市场证券的那一支。<b>在中国，"对冲基金"没有独立的法律身份，说的基本就是它。</b></div>
+        </div>
+      </div>
+      <div class="down">↓</div>
+
+      <div class="rung hl">
+        <div class="lv">5</div>
+        <div>
+          <div class="t">对冲基金<span class="en">hedge fund</span></div>
+          <div class="d">四个招牌特征：<b>做空</b>＋<b>杠杆</b>＋<b>绝对收益</b>（不管大盘涨跌都要赚，目标不是"跑赢指数"）＋<b>收费 2/20</b>（2%管理费 + 赚的钱里提20%；公募只收管理费、没有提成）。<br>
+          <span class="small">名字来自1949年琼斯的多空对冲做法——详见同文件夹 hedge_fund.md。</span></div>
+        </div>
+      </div>
+      <div class="down">↓ 把"人做决定"换成"模型做决定"</div>
+
+      <div class="rung">
+        <div class="lv">6</div>
+        <div>
+          <div class="t">量化对冲基金 → <b>宽客</b><span class="en">quant</span></div>
+          <div class="d">用模型和程序做交易决策的对冲基金；坐在里面做模型的人叫<b>宽客</b>，就是《黑箱》的主角。<br>
+          <span class="small">再往下就是本书正文：阿尔法模型、风险模型、交易成本模型、投资组合构建模型、执行模型……（第3章起逐个展开。）</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>三、换个角度：钱的上游和下游</h2>
+    <p class="sub">概念阶梯之外，还有一条钱的流向——左进右出，基金站在中间。</p>
+    <div class="two">
+      <div class="money up">
+        <h3>上游 · 钱从哪来</h3>
+        <span class="tag">出钱的人，统一叫 LP</span>
+        <ul>
+          <li>高净值个人（合格投资者）</li>
+          <li>养老金、主权基金</li>
+          <li>保险资金</li>
+          <li>捐赠基金（大学、基金会）</li>
+          <li>FOF —— 投资"别的基金"的基金</li>
+        </ul>
+      </div>
+      <div class="money dn">
+        <h3>下游 · 钱投到哪</h3>
+        <span class="tag">基金拿钱换成的东西（头寸）</span>
+        <ul>
+          <li>股票、债券</li>
+          <li>股指期货、期权</li>
+          <li>外汇、商品</li>
+        </ul>
+        <p class="small" style="margin-top:8px">两个对冲基金特有的动作：<b>做空</b>（借来先卖、跌了买回还）和<b>加杠杆</b>（借钱把头寸放大）。</p>
+      </div>
+    </div>
+    <p class="mid">钱的中间站：基金收到管理费＋业绩提成，剩下的收益按份额分回给 LP。</p>
+  </div>
+
+  <div class="footer">
+    相关笔记：<a href="hedge_fund.md">对冲基金（hedge fund）</a> ｜ <a href="black_box.md">《打开量化投资的黑箱》笔记</a><br>
+    出处：《打开量化投资的黑箱》原书第2版 第1章（书 p.2 起）。2026-10-05 制图。
+  </div>
+
+</div>
+</body>
+</html>
