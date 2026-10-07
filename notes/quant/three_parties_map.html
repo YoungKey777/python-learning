@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>名词连接图 · 三方结构 & 宏观层</title>
+
+<!--
+  纯静态页：无脚本、无交互，双击 file:// 直接打开；标签页用 radio + :checked 实现，仍是纯 CSS。
+  标签页 ①（市场层）：以"三方"为根，把名词挂到连接上：
+    ① 资金短缺方（需要钱的人）  ② 资金盈余方（钱要生钱的人）  ③ 中介与服务者
+  标签页 ②（宏观层）：数据（GDP / 物价 / 景气信用）→ 央行政策 → 利率 → 市场价格的传导。
+  配套：quant class/quant class1 随堂随记（宏观层 = 第 9 节）+ notes/quant/ 各术语笔记。2026-10-07 制图。
+-->
+
+<style>
+:root{
+  --bg:#f4f5f8; --card:#ffffff; --text:#20242e; --muted:#6a7180; --border:#e2e5ec;
+  --accent:#2f6fdb; --accent-soft:#e8effc;
+  --up:#b06f14; --up-soft:#faf1e2;          /* ① 缺钱方 · 琥珀 */
+  --dn:#1f7a56; --dn-soft:#e6f4ee;          /* ② 盈余方 · 绿 */
+  --money:#1f7a56; --sec:#2f6fdb; --cost:#c0392b; --bridge:#7b52c7; --gray:#9aa1b0;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#12141b; --card:#1c1f29; --text:#e7e9f0; --muted:#9aa1b0; --border:#2d3240;
+    --accent:#6d8dff; --accent-soft:#232b40;
+    --up:#e0a458; --up-soft:#332715;
+    --dn:#5cc39a; --dn-soft:#17301f;
+    --money:#5cc39a; --sec:#6d8dff; --cost:#ff8071; --bridge:#b39aff; --gray:#6a7180;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); line-height:1.6;
+  font-family:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px;
+}
+.wrap{max-width:1320px;margin:0 auto;padding:24px 20px 60px}
+h1{font-size:21px;margin:0 0 6px}
+.lead{color:var(--muted);font-size:13.5px;margin:0 0 8px}
+.lead b{color:var(--text)}
+
+.scroll{overflow-x:auto;padding-bottom:6px}
+.canvas{position:relative;width:1260px;height:1150px;margin:6px auto 0}
+
+/* —— 箭头层 —— */
+.links{position:absolute;inset:0;pointer-events:none}
+.links .flow{fill:none;stroke-width:2.2;stroke-linecap:round}
+.flow.money{stroke:var(--money)}
+.flow.sec{stroke:var(--sec)}
+.flow.cost{stroke:var(--cost)}
+.flow.bridge{stroke:var(--bridge)}
+.flow.rel{stroke:var(--gray);stroke-width:1.8}
+.dashed{stroke-dasharray:7 6}
+.mk{stroke:none}
+.mk.money{fill:var(--money)} .mk.sec{fill:var(--sec)}
+.mk.cost{fill:var(--cost)} .mk.bridge{fill:var(--bridge)} .mk.rel{fill:var(--gray)}
+
+/* —— 区块底框 —— */
+.band{position:absolute;border:1.5px dashed var(--border);border-radius:14px}
+.bandtag{position:absolute;font-size:12.5px;font-weight:700;color:var(--muted);letter-spacing:.2px}
+
+/* —— 节点卡片 —— */
+.at{position:absolute}
+.node{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:9px 14px;box-shadow:0 1px 3px rgba(20,40,90,.05);
+}
+.node .h{font-weight:700;font-size:13px;margin-bottom:4px}
+.node .row{font-size:12.3px;line-height:1.55;margin:2px 0}
+.node .small{font-size:11.4px;color:var(--muted)}
+.node .row b{font-weight:700}
+
+.party .t{font-weight:700;font-size:14.5px;display:block;margin-bottom:1px}
+.party .d{font-size:12px;color:var(--muted)}
+.party1{border:1.5px solid var(--up);background:var(--up-soft)}   .party1 .t{color:var(--up)}
+.party2{border:1.5px solid var(--dn);background:var(--dn-soft)}   .party2 .t{color:var(--dn)}
+.party3{border:1.5px solid var(--accent);background:var(--accent-soft)} .party3 .t{color:var(--accent)}
+
+.c1{border-left:4px solid var(--up)}
+.c2{border-left:4px solid var(--dn)}
+.c3{border-left:4px solid var(--accent)}
+
+/* 链式小行（基金链） */
+.mini{
+  display:flex;justify-content:space-between;align-items:baseline;gap:6px;
+  border:1px solid var(--border);border-radius:7px;background:var(--bg);
+  padding:3.5px 9px;margin-top:5px;font-size:12px;font-weight:700;
+}
+.mini span{font-weight:400;color:var(--muted);font-size:11px;text-align:right}
+.mini.last{border-color:var(--dn);background:var(--dn-soft)}
+
+/* 中介三类 */
+.role{border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:8px;
+  background:var(--bg);padding:6px 10px;margin-top:8px}
+.role .rt{font-size:12.8px;font-weight:700}
+.role .rt .tag{font-weight:400;color:var(--muted);font-size:11px;margin-left:6px}
+.role .rd{font-size:12px;line-height:1.5;color:var(--text);margin-top:1px}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:5px 0 2px}
+.chip{border:1px solid var(--border);border-radius:999px;padding:1.5px 10px;font-size:11.6px;background:var(--card)}
+
+/* 箭头旁的文字标注 */
+.lbl{position:absolute;font-size:11.8px;color:var(--muted);text-align:center;line-height:1.45}
+.lbl b{color:var(--text)}
+.lbl.ll{text-align:left}
+.lbl .tiny{font-size:11px;display:block}
+
+/* 图例 / 页脚 */
+.legend{display:flex;flex-wrap:wrap;gap:8px 26px;margin:14px 0 0;font-size:12.5px;color:var(--muted)}
+.li{display:flex;align-items:center}
+.sw{display:inline-block;width:30px;height:0;border-top:2.4px solid var(--muted);margin-right:8px}
+.sw.money{border-color:var(--money)} .sw.sec{border-color:var(--sec)}
+.sw.cost{border-color:var(--cost);border-top-style:dashed}
+.sw.bridge{border-color:var(--bridge);border-top-style:dashed}
+
+/* —— 标签页（纯 CSS，无脚本：radio + :checked） —— */
+.tabradio{position:absolute;opacity:0;pointer-events:none}
+.tabbar{display:flex;gap:10px;margin:6px 0 16px}
+.tabbar label{
+  cursor:pointer;padding:7px 18px;border:1.5px solid var(--border);border-radius:10px;
+  background:var(--card);font-size:13.5px;color:var(--muted);user-select:none;
+}
+.tabbar label:hover{border-color:var(--accent)}
+#view-3p:checked ~ .tabbar label[for="view-3p"],
+#view-macro:checked ~ .tabbar label[for="view-macro"],
+#view-analysis:checked ~ .tabbar label[for="view-analysis"]{
+  border-color:var(--accent);background:var(--accent-soft);color:var(--accent);font-weight:700;
+}
+.panel{display:none}
+#view-3p:checked ~ .panels > .p-3p,
+#view-macro:checked ~ .panels > .p-macro,
+#view-analysis:checked ~ .panels > .p-analysis{display:block}
+
+/* —— 两种分析：对照行 + 中缝维度标签 —— */
+.frow{height:66px;border-top:1px dashed var(--border);padding-top:22px;font-size:12.3px;line-height:1.55}
+.frow.first{border-top:none}
+.dim{position:absolute;left:555px;width:150px;text-align:center;font-size:11.8px;font-weight:700;color:var(--muted)}
+
+.footer{color:var(--muted);font-size:12.5px;margin-top:16px;border-top:1px solid var(--border);padding-top:12px}
+.footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>名词连接图</h1>
+  <p class="lead">三个标签页：<b>① 三方结构（市场层）</b> —— 谁在借钱、谁在投资、谁在中间；<b>② 宏观层</b> —— 数字 → 政策 → 价格；<b>③ 两种分析</b> —— 基本面 vs 技术分析。</p>
+
+  <input type="radio" name="view" id="view-3p" class="tabradio" checked>
+  <input type="radio" name="view" id="view-macro" class="tabradio">
+  <input type="radio" name="view" id="view-analysis" class="tabradio">
+  <div class="tabbar">
+    <label for="view-3p">① 三方结构图（市场层）</label>
+    <label for="view-macro">② 宏观层图</label>
+    <label for="view-analysis">③ 两种分析（基本面 / 技术）</label>
+  </div>
+
+  <div class="panels">
+  <div class="panel p-3p">
+
+  <div class="scroll">
+  <div class="canvas">
+
+    <!-- ============ 箭头（SVG 覆盖层） ============ -->
+    <svg class="links" width="1260" height="1150" viewBox="0 0 1260 1150" aria-hidden="true">
+      <defs>
+        <marker id="mMoney" markerWidth="9" markerHeight="9" refX="6.8" refY="3.5" orient="auto">
+          <path class="mk money" d="M0,0 L7,3.5 L0,7 z"/></marker>
+        <marker id="mSec" markerWidth="9" markerHeight="9" refX="6.8" refY="3.5" orient="auto">
+          <path class="mk sec" d="M0,0 L7,3.5 L0,7 z"/></marker>
+        <marker id="mCost" markerWidth="9" markerHeight="9" refX="6.8" refY="3.5" orient="auto">
+          <path class="mk cost" d="M0,0 L7,3.5 L0,7 z"/></marker>
+        <marker id="mBridge" markerWidth="9" markerHeight="9" refX="6.8" refY="3.5" orient="auto">
+          <path class="mk bridge" d="M0,0 L7,3.5 L0,7 z"/></marker>
+        <marker id="mRel" markerWidth="8" markerHeight="8" refX="6.4" refY="3.5" orient="auto">
+          <path class="mk rel" d="M0,0 L7,3.5 L0,7 z"/></marker>
+      </defs>
+
+      <!-- 融资层：钱 ②→③→① -->
+      <path class="flow money" d="M318,170 H404" marker-end="url(#mMoney)"/>
+      <path class="flow money" d="M818,170 H938" marker-end="url(#mMoney)"/>
+      <!-- 融资层：证券 ①→③→② -->
+      <path class="flow sec" d="M940,230 H818" marker-end="url(#mSec)"/>
+      <path class="flow sec" d="M410,230 H318" marker-end="url(#mSec)"/>
+      <!-- 费用流（虚线） -->
+      <path class="flow cost dashed" d="M318,505 H404" marker-end="url(#mCost)"/>
+      <path class="flow cost dashed" d="M940,505 H818" marker-end="url(#mCost)"/>
+      <!-- 基金链 = 资管 -->
+      <path class="flow rel dashed" d="M312,400 H414" marker-end="url(#mRel)"/>
+
+      <!-- 一级 → 二级 管道 -->
+      <path class="flow bridge dashed" d="M630,618 V666" marker-end="url(#mBridge)"/>
+
+      <!-- 二级市场内部 -->
+      <path class="flow money" d="M296,778 H338" marker-end="url(#mMoney)"/>
+      <path class="flow money" d="M964,778 H922" marker-end="url(#mMoney)"/>
+      <path class="flow money" d="M475,914 V894" marker-end="url(#mMoney)"/>
+      <path class="flow money" d="M755,914 V894" marker-end="url(#mMoney)"/>
+      <path class="flow rel dashed" d="M906,972 H892" marker-end="url(#mRel)"/>
+      <path class="flow rel dashed" d="M316,970 H342" marker-end="url(#mRel)"/>
+    </svg>
+
+    <!-- ============ 区块底框 ============ -->
+    <div class="band" style="left:20px;top:96px;width:1220px;height:520px"></div>
+    <div class="bandtag" style="left:36px;top:103px">融资层 · 一级市场（发行市场）—— 钱出发的地方，终点是企业口袋</div>
+
+    <div class="band" style="left:20px;top:676px;width:1220px;height:430px"></div>
+    <div class="bandtag" style="left:36px;top:683px">流通层 · 二级市场（交易市场）—— 钱只在投资者之间转（②↔②），企业一分钱收不到</div>
+
+    <!-- ============ ① 资金短缺方 ============ -->
+    <div class="at node party party1" style="left:950px;top:150px;width:290px;height:62px">
+      <span class="t">① 资金短缺方</span>
+      <span class="d">需要钱去投资或周转的人</span>
+    </div>
+    <div class="at node c1" style="left:950px;top:222px;width:290px;height:140px">
+      <div class="h">要钱干什么？</div>
+      <div class="row"><b>企业 · 股权融资</b>：IPO · 增发 —— 打新的人在这里买</div>
+      <div class="row"><b>企业 · 债权融资</b>：银行贷款 · 发债</div>
+      <div class="row"><b>政府</b>：发国债 ｜ <b>个人</b>：房贷 · 消费贷</div>
+    </div>
+    <div class="at node c1" style="left:950px;top:374px;width:290px;height:76px">
+      <div class="h">更早一步：PE / VC</div>
+      <div class="row">公司还没上市就先投它（一级市场买非上市股权）</div>
+    </div>
+    <div class="at node c1" style="left:950px;top:458px;width:290px;height:156px">
+      <div class="h">债券这一族（① 的借钱工具）</div>
+      <div class="row"><b>十年期国债</b>：政府发；收益率 = 无风险利率、定价分母</div>
+      <div class="row"><b>公司债券</b>：企业发；收益率 = 国债 + 信用利差</div>
+      <div class="row"><b>可转债</b>：公司债 + 能转成股票（债打底、股进攻）</div>
+    </div>
+
+    <!-- ============ ② 资金盈余方 ============ -->
+    <div class="at node party party2" style="left:40px;top:150px;width:270px;height:62px">
+      <span class="t">② 资金盈余方</span>
+      <span class="d">有闲钱、想让钱生钱的人</span>
+    </div>
+    <div class="at node c2" style="left:40px;top:222px;width:270px;height:96px">
+      <div class="h">钱怎么投？</div>
+      <div class="row">自己买：开个账户直接买股票 · 债券</div>
+      <div class="row">交给别人：买基金 → 下面这条链</div>
+    </div>
+    <div class="at node c2" style="left:40px;top:330px;width:270px;height:232px">
+      <div class="h">钱的代理人链（交给谁管）</div>
+      <div class="mini">公募基金<span>谁都能买</span></div>
+      <div class="mini">私募基金<span>合格投资者</span></div>
+      <div class="mini">私募证券投资基金<span>投向公开证券</span></div>
+      <div class="mini">对冲基金<span>做空 · 杠杆 · 2/20</span></div>
+      <div class="mini last">量化对冲基金 → 宽客<span>模型做决策</span></div>
+    </div>
+
+    <!-- ============ ③ 中介与服务者 ============ -->
+    <div class="at node c3" style="left:420px;top:150px;width:390px;height:376px">
+      <div class="h" style="font-size:14.5px;color:var(--accent)">③ 中介与服务者</div>
+      <div class="row small" style="margin-bottom:4px">钱和证券之间的过路者 —— 没有摩擦，就没有他们</div>
+
+      <div class="role">
+        <div class="rt">银行<span class="tag">间接融资</span></div>
+        <div class="rd">吸收存款 → 放贷，赚利差；风险装进自己资产负债表</div>
+        <div class="rd" style="color:var(--muted);font-size:11.4px">同业间也互相借：LIBOR / SHIBOR 这种利率（LIBOR 已退役 → SOFR）</div>
+      </div>
+      <div class="role">
+        <div class="rt">券商 · 投行<span class="tag">通道 + 承销</span></div>
+        <div class="rd">一级市场承销（帮企业发股票），二级市场经纪（赚佣金）；也自营</div>
+      </div>
+      <div class="role">
+        <div class="rt">资管 · 基金公司<span class="tag">代客理财</span></div>
+        <div class="rd">管理费 + 业绩提成；图左那条基金链，就是这一类</div>
+      </div>
+
+      <div class="h" style="margin-top:12px">为什么需要中介？</div>
+      <div class="chips">
+        <span class="chip">信息不对称</span><span class="chip">期限错配</span>
+        <span class="chip">规模门槛</span><span class="chip">风险分担</span>
+      </div>
+      <div class="row small">中介的利润，就是这些摩擦的"过路费"</div>
+      <div class="row small" style="margin-top:6px">（交易所、做市商不站这一层 —— 它们在下面二级市场里）</div>
+    </div>
+
+    <div class="at node" style="left:420px;top:530px;width:390px;height:80px">
+      <div class="h">钱的价格（利率的两根标杆）</div>
+      <div class="row"><b>联邦基金利率</b>：美国短端 · 美联储加息降息调的就是它</div>
+      <div class="row"><b>十年期国债收益率</b>：长端 · 无风险利率的化身</div>
+    </div>
+
+    <!-- ============ 融资层箭头文字 ============ -->
+    <div class="lbl" style="left:306px;top:145px;width:118px">钱（储蓄）</div>
+    <div class="lbl" style="left:306px;top:234px;width:118px">证券 · 基金份额</div>
+    <div class="lbl" style="left:296px;top:379px;width:130px;font-size:11px">基金链 = ③ 的资管</div>
+    <div class="lbl" style="left:306px;top:481px;width:118px">管理费 · 佣金</div>
+
+    <div class="lbl" style="left:808px;top:143px;width:148px"><b>融资款</b> —— 钱进企业口袋</div>
+    <div class="lbl" style="left:808px;top:234px;width:148px"><b>股票 · 债券</b>（新发行）<span class="tiny">打新在这条线上买｜锁定期：先拿住</span></div>
+    <div class="lbl" style="left:808px;top:481px;width:148px">承销费（融资款里扣）</div>
+
+    <!-- ============ 一级 → 二级 管道 ============ -->
+    <div class="lbl ll" style="left:646px;top:614px;width:440px">
+      <b>解禁 → 减持 / 套现</b>：一级市场拿到的股票，锁定期满才能卖 —— IPO 是进二级市场的门，解禁是出场的门
+    </div>
+
+    <!-- ============ 二级市场内部 ============ -->
+    <div class="at node party party2" style="left:40px;top:746px;width:250px;height:64px">
+      <span class="t" style="font-size:13.5px">② 投资者 A</span>
+      <span class="d">想买的人（手里有钱）</span>
+    </div>
+    <div class="at node party party2" style="left:970px;top:746px;width:250px;height:64px">
+      <span class="t" style="font-size:13.5px">② 投资者 B</span>
+      <span class="d">想卖的人（手里有货）</span>
+    </div>
+
+    <div class="at node" style="left:350px;top:736px;width:560px;height:152px">
+      <div class="h">交易所 —— 撮合与报价的场地</div>
+      <div class="row"><b>上交所</b>｜A 股 · T+1 · 涨跌停 · 科创板</div>
+      <div class="row"><b>纳斯达克</b>｜第一家电子化市场 · 科技股大本营</div>
+      <div class="row"><b>CBOT</b>｜期货发源地（现属 CME 集团）</div>
+      <div class="row"><b>可转债</b>｜在交易所交易：T+0 · 涨跌幅 20%（股票是 T+1）</div>
+    </div>
+
+    <div class="at node" style="left:350px;top:916px;width:250px;height:112px">
+      <div class="h">做市商</div>
+      <div class="row">双边报价 · 赚买卖价差 · 提供流动性</div>
+      <div class="row small">科创板 2022 年起有；加密市场个人也能做</div>
+    </div>
+    <div class="at node" style="left:630px;top:916px;width:250px;height:112px">
+      <div class="h">量化</div>
+      <div class="row">策略 = 客观规则集，自动执行</div>
+      <div class="row small">高频做市是最经典的打法</div>
+    </div>
+    <div class="at node" style="left:910px;top:916px;width:310px;height:112px">
+      <div class="h">手里拿的工具（对冲基金 / 量化在用）</div>
+      <div class="row">衍生品（期货 · 期权 · 远期 · 互换）· 杠杆 · 做多 / 做空</div>
+    </div>
+
+    <div class="at node" style="left:40px;top:902px;width:270px;height:136px">
+      <div class="h">加密货币（另一个战场）</div>
+      <div class="row"><b>比特币</b>：第一种币 · 2100 万枚封顶 ·"数字黄金"</div>
+      <div class="row"><b>以太坊</b>：智能合约平台（DeFi · NFT 的底座）</div>
+      <div class="row small">24×7 · 无涨跌停 · 个人可做市 · 有永续期货</div>
+    </div>
+
+    <div class="at node c3" style="left:40px;top:1046px;width:1180px;height:48px;padding:6px 14px">
+      <div class="row" style="font-size:12.5px"><b>交易成本</b>：佣金 · 手续费（付给券商 / 交易所） ｜ <b>滑点</b>（价格的损耗，不付给谁）—— 量化的生死线</div>
+    </div>
+
+    <div class="lbl" style="left:292px;top:740px;width:52px">买</div>
+    <div class="lbl" style="left:912px;top:740px;width:52px">卖</div>
+    <div class="lbl" style="left:382px;top:897px;width:88px;font-size:11px;text-align:right">双边报价</div>
+    <div class="lbl" style="left:763px;top:897px;width:60px;font-size:11px;text-align:left">下单</div>
+    <div class="lbl" style="left:866px;top:948px;width:64px;font-size:11px">在用</div>
+
+  </div>
+  </div>
+
+  <div class="legend">
+    <span class="li"><i class="sw money"></i>资金流 —— 钱往哪走</span>
+    <span class="li"><i class="sw sec"></i>证券流 —— 买到 / 卖出的凭证</span>
+    <span class="li"><i class="sw cost"></i>费用流 —— 谁付给谁（虚线）</span>
+    <span class="li"><i class="sw bridge"></i>管道 —— 一级 ↔ 二级的转换（虚线）</span>
+  </div>
+  </div><!-- .p-3p 市场层 -->
+
+  <!-- ==================== 标签页 ②：宏观层 ==================== -->
+  <div class="panel p-macro">
+
+  <div class="scroll">
+  <div class="canvas" style="height:920px">
+
+    <!-- ============ 箭头（SVG 覆盖层） ============ -->
+    <svg class="links" width="1260" height="920" viewBox="0 0 1260 920" aria-hidden="true">
+      <defs>
+        <marker id="mMacSec" markerWidth="9" markerHeight="9" refX="6.8" refY="3.5" orient="auto">
+          <path class="mk sec" d="M0,0 L7,3.5 L0,7 z"/></marker>
+        <marker id="mMacMoney" markerWidth="9" markerHeight="9" refX="6.8" refY="3.5" orient="auto">
+          <path class="mk money" d="M0,0 L7,3.5 L0,7 z"/></marker>
+      </defs>
+
+      <!-- 体检表 → 央行：信号方向（蓝） -->
+      <path class="flow sec" d="M630,304 V470" marker-end="url(#mMacSec)"/>
+      <path class="flow sec" d="M1030,304 V412 H830 V470" marker-end="url(#mMacSec)"/>
+      <!-- 央行 → 利率 → 市场：传导（绿） -->
+      <path class="flow money" d="M630,604 V672" marker-end="url(#mMacMoney)"/>
+      <path class="flow money" d="M630,776 V792" marker-end="url(#mMacMoney)"/>
+    </svg>
+
+    <!-- ============ 区块底框 ============ -->
+    <div class="band" style="left:20px;top:70px;width:1220px;height:270px"></div>
+    <div class="bandtag" style="left:36px;top:77px">数据层 · 经济的体检表（输入：每个月 / 每季度出的新数字）</div>
+
+    <div class="band" style="left:20px;top:450px;width:1220px;height:200px"></div>
+    <div class="bandtag" style="left:36px;top:457px">政策层 · 央行怎么读这张表</div>
+
+    <div class="band" style="left:20px;top:670px;width:1220px;height:250px"></div>
+    <div class="bandtag" style="left:36px;top:677px">传导层 · 数字最后变成价格（出口 = 市场层）</div>
+
+    <!-- ============ 三张体检表 ============ -->
+    <div class="at node party party1" style="left:40px;top:90px;width:380px;height:210px">
+      <span class="t">① 总量 · GDP 家族</span>
+      <div class="row" style="margin-top:8px"><b>GDP</b>：境内 · 一定时期 · 最终产品 · 市场价值</div>
+      <div class="row">三种切法：生产法＝造 · 支出法＝花 · 收入法＝赚</div>
+      <div class="row">支出法：C ＋ I ＋ G ＋ 净出口（"三驾马车"）</div>
+      <div class="row"><b>GDP 增速</b>：蛋糕做大的速度（名义 ≈ 实际 + 物价）</div>
+      <div class="row small">连接：增速慢 → 岗位少（奥肯定律 → 失业率）</div>
+    </div>
+
+    <div class="at node party party2" style="left:440px;top:90px;width:380px;height:210px">
+      <span class="t">② 物价 · 钱的含金量</span>
+      <div class="row" style="margin-top:8px"><b>CPI</b>：老百姓体感的一篮子价格</div>
+      <div class="row"><b>核心CPI</b>：去掉食品能源 —— 央行的体温计</div>
+      <div class="row"><b>PPI</b>：出厂价（PPI 涨、CPI 不涨 → 中下游利润被挤）</div>
+      <div class="row"><b>货币购买力</b>：物价的倒数 —— 通胀在偷钱</div>
+      <div class="row small">连接：PPI →（传导 · 打折）→ CPI</div>
+    </div>
+
+    <div class="at node party party3" style="left:840px;top:90px;width:380px;height:210px">
+      <span class="t">③ 景气与信用 · 水温</span>
+      <div class="row" style="margin-top:8px"><b>PMI</b>：50 是荣枯线（月底最快出）</div>
+      <div class="row"><b>社融</b>：水有没有流进实体</div>
+      <div class="row"><b>失业率</b>：劳动力体温（不算退出劳动力的人）</div>
+      <div class="row small">连接：PMI、社融 领先 GDP 一个季度上下</div>
+    </div>
+
+    <!-- ============ 政策中枢 ============ -->
+    <div class="at node party party3" style="left:380px;top:480px;width:500px;height:120px">
+      <span class="t">央行 —— 政策中枢</span>
+      <div class="row" style="margin-top:6px">美联储双重使命：<b>稳就业 + 稳物价</b>（中国央行：稳增长 · 稳物价）</div>
+      <div class="row">工具：利率（联邦基金利率 / 7 天逆回购）· 存款准备金率（降准 = 放水）</div>
+    </div>
+
+    <!-- ============ 传导出口 ============ -->
+    <div class="at node c2" style="left:380px;top:680px;width:500px;height:92px">
+      <div class="h">利率 ＝ 钱的价格</div>
+      <div class="row">短端：联邦基金利率（美）/ 7 天逆回购（中）—— 长端：十年期国债收益率</div>
+      <div class="row small">费雪方程：名义利率 ≈ 实际利率 + 通胀预期</div>
+    </div>
+    <div class="at node c3" style="left:380px;top:796px;width:500px;height:84px">
+      <div class="h">数字最后变成价格（市场层入口）</div>
+      <div class="row">股票（折现率的分母）· 债券（与利率反比）· 汇率 · 房贷 → 见「三方结构图」标签页</div>
+    </div>
+
+    <!-- ============ 箭头文字 ============ -->
+    <div class="lbl ll" style="left:642px;top:344px;width:170px">稳物价：盯 CPI · 核心 CPI</div>
+    <div class="lbl ll" style="left:842px;top:420px;width:180px">稳就业：盯失业率</div>
+    <div class="lbl ll" style="left:642px;top:616px;width:240px">调利率 / 降准 —— 政策落地</div>
+
+  </div>
+  </div>
+
+  <div class="legend">
+    <span class="li"><i class="sw sec"></i>蓝色 —— 体检数字 → 央行的信号方向</span>
+    <span class="li"><i class="sw money"></i>绿色 —— 政策 → 市场价格的传导</span>
+  </div>
+  </div><!-- .p-macro 宏观层 -->
+
+  <!-- ==================== 标签页 ③：两种分析 ==================== -->
+  <div class="panel p-analysis">
+
+  <div class="scroll">
+  <div class="canvas" style="height:850px">
+
+    <!-- ============ 箭头（SVG 覆盖层） ============ -->
+    <svg class="links" width="1260" height="850" viewBox="0 0 1260 850" aria-hidden="true">
+      <defs>
+        <marker id="mAna" markerWidth="9" markerHeight="9" refX="6.8" refY="3.5" orient="auto">
+          <path class="mk sec" d="M0,0 L7,3.5 L0,7 z"/></marker>
+      </defs>
+      <path class="flow sec" d="M290,524 V574 H560 V632" marker-end="url(#mAna)"/>
+      <path class="flow sec" d="M970,524 V574 H760 V632" marker-end="url(#mAna)"/>
+    </svg>
+
+    <!-- ============ 区块底框 ============ -->
+    <div class="band" style="left:20px;top:90px;width:1220px;height:480px"></div>
+    <div class="bandtag" style="left:36px;top:97px">方法层 · 两种分析 —— 同一个目标，两条路</div>
+
+    <div class="band" style="left:20px;top:610px;width:1220px;height:210px"></div>
+    <div class="bandtag" style="left:36px;top:617px">决策层 · 两条路收口到同一个动作</div>
+
+    <!-- ============ 左：基本面分析 ============ -->
+    <div class="at node party party3" style="left:40px;top:100px;width:500px;height:420px">
+      <span class="t">基本面分析<span style="font-weight:400;font-size:12px;color:var(--muted)"> fundamental analysis</span></span>
+      <div class="d">格雷厄姆 / 巴菲特这一派 —— 价值投资：找便宜的好公司</div>
+      <div class="frow first"><b>值多少钱</b> → 该不该买、买什么（与市价比较，判断高估 / 低估）</div>
+      <div class="frow"><b>宏观 → 行业 → 公司财报</b>（利润表 · 资产负债表 · 现金流量表）</div>
+      <div class="frow"><b>DCF 现金流折现</b> · 相对估值 PE / PB / EV·EBITDA</div>
+      <div class="frow"><b>低频</b>：季报 / 年报驱动 · 持仓数月—数年 · 换手低</div>
+      <div class="frow"><b>前提</b>：价格长期向价值回归 · 留安全边际（margin of safety）</div>
+    </div>
+
+    <!-- ============ 右：技术分析 ============ -->
+    <div class="at node party party1" style="left:720px;top:100px;width:500px;height:420px">
+      <span class="t">技术分析<span style="font-weight:400;font-size:12px;color:var(--muted)"> technical analysis</span></span>
+      <div class="d">道氏理论打底 —— 后来长出形态、指标各个流派</div>
+      <div class="frow first"><b>会涨还是会跌</b> → 何时买卖（择时；不问它值多少钱）</div>
+      <div class="frow"><b>价格 · 成交量 · 时间</b> —— K线与指标的全部原料</div>
+      <div class="frow"><b>K线 / 形态</b> · 均线 MA · MACD · RSI · 支撑 / 阻力</div>
+      <div class="frow"><b>高频</b>：分钟—日数据 · 持仓日内—数周 · 换手高</div>
+      <div class="frow"><b>三大假设</b>：市场行为包容一切 · 价格以趋势演变 · 历史会重演</div>
+    </div>
+
+    <!-- ============ 中缝：对照维度 ============ -->
+    <div class="dim" style="top:176px">回答的问题</div>
+    <div class="dim" style="top:242px">看什么</div>
+    <div class="dim" style="top:308px">工具箱</div>
+    <div class="dim" style="top:374px">频率 · 持仓 · 换手</div>
+    <div class="dim" style="top:440px">前提假设</div>
+
+    <!-- ============ 收口 ============ -->
+    <div class="at node" style="left:380px;top:640px;width:500px;height:130px">
+      <div class="h">殊途同归 —— 都要落到同一个动作：买 / 卖</div>
+      <div class="row">量化做的事：把任意一条路写成可回测的客观规则 —— 进宽客的阿尔法模型（见「三方结构图」标签页）</div>
+      <div class="row small">一句话：基本面管"买什么"，技术面管"什么时候买卖"。</div>
+    </div>
+
+    <div class="lbl ll" style="left:300px;top:528px;width:190px">基本面量化：多因子选股</div>
+    <div class="lbl ll" style="left:984px;top:528px;width:190px">技术面量化：趋势 · 动量</div>
+
+  </div>
+  </div>
+
+  <div class="legend">
+    <span class="li"><i class="sw sec"></i>蓝色 —— 两条路汇进同一个决策</span>
+  </div>
+  </div><!-- .p-analysis 两种分析 -->
+
+  </div><!-- .panels -->
+
+  <div class="footer">
+    配套：<a href="quant%20class/quant%20class1">quant class1</a>（随堂随记 + 名词整理）｜
+    <a href="hedge_fund.md">对冲基金</a> ｜ <a href="long_and_short.md">做多 / 做空</a> ｜ <a href="black_box.md">《打开量化投资的黑箱》笔记</a><br>
+    出处：2026-10-07 课堂随记 + notes/quant 术语笔记。市场层 = quant class1 第 1–8 节，宏观层 = 第 9 节。
+  </div>
+
+</div>
+</body>
+</html>

@@ -17,6 +17,10 @@ env/
 # 例外：pandas 官方教程示例数据（581 KB、公开、无版权）—— 让仓库 clone 下来就能跑 Day 1
 !pandas/data/*.csv
 
+# 课程原始课件（二进制，版权归课程方，不上传；自己的总结 md 照常提交）
+notes/quant/quant class/*.doc
+notes/quant/quant class/*.docx
+
 # 临时
 *.tmp
 ~$*

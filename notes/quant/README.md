@@ -14,6 +14,7 @@
 | [derivatives.md](derivatives.md) | 衍生品 |
 | [leverage.md](leverage.md) | 杠杆 |
 | [long_and_short.md](long_and_short.md) | 做多 / 做空 |
+| [three_parties_map.html](three_parties_map.html) | 名词连接图（图解，双击打开）｜①三方结构（缺钱方/盈余方/中介）②宏观层（数据→央行→利率）③两种分析（基本面 vs 技术） |
 | [fund_concept_map.html](fund_concept_map.html) | 概念地图（图解，双击打开） |
 | [quant_basics_mindmap.mm](quant_basics_mindmap.mm) | 基础概念思维导图（知犀导入用；另有 [.md 版](quant_basics_mindmap.md)） |
 
