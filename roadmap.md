@@ -33,7 +33,7 @@
   - [[notes/numpy_note|numpy 学习笔记]] —— 5 天。官方没有 pandas 那样的 8 篇系列，所以是**按量化需要倒推**的；核心是「掀开 pandas 的盖子」
   - [[notes/pandas_note|pandas 学习笔记]] —— 官方 Getting Started 逐篇拆成 8 天，每天一篇 + 3 个动作重敲；教程数据已落盘 `pandas/data/`
 - **顺序**：理想顺序是 **numpy 先、pandas 后**（numpy 是地基，`df["A"] + df["B"]` 底下就是它）。**但 pandas 先开跑了，实际走法是：先把 pandas Day 8 收尾收完，再回头补 numpy**
-- **当前进度**：pandas 走到 Day 8（收尾未做），numpy 走到 Day 3（广播）
+- **当前进度**：pandas 走到 Day 8（收尾未做），numpy 走到 Day 3 完（广播 ✅，下一天：Day 4 聚合与轴）
 
 ## 阶段 3：数据可视化（1 周）⬜ 核心
 
