@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>量化流程 · 思维导图</title>
+<style>
+  :root{
+    --bg:#f4f6f9; --line:#c9d0da;
+    --ink:#1e2530; --ink2:#3b4453; --muted:#7b8494;
+    --leaf-bg:#eef1f6; --leaf-ink:#465062;
+    --chip-bg:#ffffff; --chip-border:#d8dee8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC","Segoe UI",system-ui,sans-serif;
+    padding:26px 36px 64px; min-width:1180px;
+  }
+
+  /* ---------- toolbar ---------- */
+  .toolbar{display:flex;align-items:center;gap:10px;margin:0 0 28px}
+  .toolbar h1{font-size:15px;font-weight:600;color:var(--ink2);margin:0 14px 0 0}
+  .toolbar button{
+    font:inherit;font-size:12.5px;color:var(--ink2);background:#fff;
+    border:1px solid #d5dbe5;border-radius:7px;padding:5px 12px;cursor:pointer;
+    transition:background .15s,border-color .15s;
+  }
+  .toolbar button:hover{border-color:#aeb8c8;background:#fafbfd}
+  .toolbar .hint{font-size:12px;color:var(--muted);margin-left:6px}
+
+  /* ---------- tree skeleton ---------- */
+  .tree{display:flex;align-items:center}
+  .tree ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+  .tree li{position:relative;display:flex;align-items:center;padding:5px 0 5px 24px}
+  /* elbow: trunk -> this node */
+  .tree li::before{
+    content:"";position:absolute;left:0;top:50%;width:24px;
+    border-top:1px solid var(--line);
+  }
+  /* trunk: continuous vertical line built from per-row segments */
+  .tree li::after{
+    content:"";position:absolute;left:0;top:0;bottom:0;
+    border-left:1px solid var(--line);
+  }
+  .tree li:first-child::after{top:50%}
+  .tree li:last-child::after{bottom:50%}
+  /* node -> children column */
+  .tree li > ul{position:relative;margin-left:18px}
+  .tree li > ul::before{
+    content:"";position:absolute;left:-18px;top:50%;width:18px;
+    border-top:1px solid var(--line);
+  }
+  /* root -> branches column */
+  .tree > .branches{position:relative;margin-left:20px}
+  .tree > .branches::before{
+    content:"";position:absolute;left:-20px;top:50%;width:20px;
+    border-top:1px solid var(--line);
+  }
+  li.collapsed > ul{display:none}
+
+  /* ---------- nodes ---------- */
+  .root{
+    flex:none;background:#20293a;color:#fff;border-radius:14px;
+    padding:16px 24px;text-align:center;box-shadow:0 8px 22px rgba(31,41,55,.16);
+  }
+  .root-main{font-size:18px;font-weight:700;letter-spacing:2px}
+  .root-sub{font-size:11.5px;color:#aab4c6;margin-top:5px;letter-spacing:4px}
+
+  .node{
+    flex:none;display:inline-flex;align-items:center;white-space:nowrap;
+    line-height:1.4;border-radius:9px;user-select:none;
+    transition:box-shadow .15s;
+  }
+  .node.has-kids{cursor:pointer}
+  .node.has-kids:hover{box-shadow:0 2px 10px rgba(30,37,48,.13)}
+
+  .lv1{font-size:15px;font-weight:700;padding:9px 17px;border-radius:11px;
+       color:var(--c);background:var(--tint);border:1.5px solid var(--c)}
+  .lv2{font-size:13px;font-weight:600;padding:6px 13px;
+       color:var(--ink);background:#fff;border:1px solid #dde3ec;border-left:3px solid var(--c)}
+  .lv3{font-size:12.5px;font-weight:600;padding:5px 12px;
+       color:var(--ink);background:#fff;border:1px solid #e0e5ee}
+  .lv4{font-size:12.5px;font-weight:600;padding:4px 11px;
+       color:var(--ink2);background:#f7f9fc;border:1px solid #e3e8f0}
+  .leaf{font-size:12.5px;font-weight:400;padding:4px 12px;
+        color:var(--leaf-ink);background:var(--leaf-bg);border-radius:8px}
+
+  .chip{
+    display:inline-block;margin-left:6px;padding:1px 9px;border-radius:999px;
+    background:var(--chip-bg);border:1px solid var(--chip-border);
+    font-size:11.5px;color:#4a5568;
+  }
+  .tag{
+    display:inline-block;margin-left:9px;padding:1px 8px;border-radius:999px;
+    font-size:10.5px;font-weight:400;color:#8a94a6;
+    background:#f2f4f8;border:1px solid #e1e6ef;
+  }
+
+  .caret{display:inline-block;width:12px;margin-right:5px;font-size:9px;
+         color:#9aa3b2;text-align:center}
+  .caret::before{content:"\25BE"}
+  li.collapsed > .node .caret::before{content:"\25B8"}
+
+  /* branch palettes */
+  .b-alpha{--c:#3563e9;--tint:#edf2ff}
+  .b-risk {--c:#d64545;--tint:#fdeeee}
+  .b-fee  {--c:#c07a16;--tint:#fdf3e2}
+  .b-port {--c:#2f9e6e;--tint:#e9f7f0}
+  .b-trade{--c:#7a5bd6;--tint:#f1edfc}
+
+  .foot{margin-top:36px;font-size:12px;color:#9aa3b2}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>量化流程 · 思维导图</h1>
+  <button id="expandAll">展开全部</button>
+  <button id="collapseAll">收起全部</button>
+  <span class="hint">点击带 ▾ 的节点可收起 / 展开</span>
+</div>
+
+<div class="tree">
+  <div class="root">
+    <div class="root-main">量化流程</div>
+    <div class="root-sub">五大模型</div>
+  </div>
+
+  <ul class="branches">
+
+    <!-- ① Alpha 模型 -->
+    <li class="b-alpha">
+      <div class="node lv1 has-kids"><span class="caret"></span>① Alpha 模型</div>
+      <ul>
+        <li>
+          <div class="node lv2 has-kids"><span class="caret"></span>本质</div>
+          <ul>
+            <li><div class="node leaf">超额收益 = 组合收益 − 基准收益</div></li>
+            <li><div class="node leaf">基于：<span class="chip">历史数据</span><span class="chip">统计分析</span><span class="chip">数学模型</span></div></li>
+            <li><div class="node leaf">预测方法：回归法</div></li>
+          </ul>
+        </li>
+        <li>
+          <div class="node lv2 has-kids"><span class="caret"></span>因子评价</div>
+          <ul>
+            <li><div class="node leaf">IC（信息系数）：因子值与未来截面收益的相关性</div></li>
+            <li><div class="node leaf">检验：<span class="chip">十分组多空</span><span class="chip">IC</span></div></li>
+          </ul>
+        </li>
+        <li>
+          <div class="node lv2 has-kids"><span class="caret"></span>类型</div>
+          <ul>
+            <li><div class="node leaf">两派渊源：理论主义（假设）· 经验主义（观察）</div></li>
+            <li>
+              <div class="node lv3 has-kids"><span class="caret"></span>理论驱动（主流）</div>
+              <ul>
+                <li>
+                  <div class="node lv3 has-kids"><span class="caret"></span>量价模型</div>
+                  <ul>
+                    <li>
+                      <div class="node lv4 has-kids"><span class="caret"></span>趋势</div>
+                      <ul>
+                        <li><div class="node leaf">做法：趋势跟踪 · 追涨杀跌</div></li>
+                        <li><div class="node leaf">理论：博傻理论</div></li>
+                        <li><div class="node leaf">指标：<span class="chip">5 日平均收益率</span><span class="chip">价格</span><span class="chip">成交量</span><span class="chip">成交金额</span></div></li>
+                      </ul>
+                    </li>
+                    <li>
+                      <div class="node lv4 has-kids"><span class="caret"></span>反转</div>
+                      <ul>
+                        <li><div class="node leaf">方式：均值回归</div></li>
+                        <li><div class="node leaf">指标：5 日乖离率 =（收盘价 − 5 日均价）/ 5 日均价</div></li>
+                      </ul>
+                    </li>
+                    <li>
+                      <div class="node lv4 has-kids"><span class="caret"></span>技术情绪（Technical Sentiment）</div>
+                      <ul>
+                        <li><div class="node leaf">性质：无统一经济理论支撑</div></li>
+                        <li><div class="node leaf">指标来源：<span class="chip">看涨 / 看跌期权持仓</span><span class="chip">成交量</span><span class="chip">未平仓合约</span></div></li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <div class="node lv3 has-kids"><span class="caret"></span>基本面模型</div>
+                  <ul>
+                    <li>
+                      <div class="node lv4 has-kids"><span class="caret"></span>价值</div>
+                      <ul>
+                        <li><div class="node leaf">指标：<span class="chip">P/E = 市值 / 净利润</span><span class="chip">E/P（盈利收益率）</span></div></li>
+                        <li><div class="node leaf">做法：多低估 · 空高估</div></li>
+                      </ul>
+                    </li>
+                    <li>
+                      <div class="node lv4 has-kids"><span class="caret"></span>增长</div>
+                      <ul>
+                        <li><div class="node leaf">指标：PEG = P/E ÷ 盈利增长率</div></li>
+                        <li><div class="node leaf">做法：多「增长被低估」</div></li>
+                      </ul>
+                    </li>
+                    <li>
+                      <div class="node lv4 has-kids"><span class="caret"></span>质量（五类）</div>
+                      <ul>
+                        <li><div class="node leaf">杠杆：空高杠杆 · 多低杠杆</div></li>
+                        <li><div class="node leaf">收入来源的多样性</div></li>
+                        <li><div class="node leaf">管理质量</div></li>
+                        <li><div class="node leaf">欺诈风险</div></li>
+                        <li><div class="node leaf">对资产发行者质量的信心</div></li>
+                      </ul>
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <div class="node lv3 has-kids"><span class="caret"></span>数据驱动</div>
+              <ul>
+                <li><div class="node leaf">方法：统计挖掘 · 机器学习</div></li>
+                <li><div class="node leaf">性质：可解释性差</div></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+
+    <!-- ② 风险模型 -->
+    <li class="b-risk">
+      <div class="node lv1 has-kids"><span class="caret"></span>② 风险模型</div>
+      <ul>
+        <li><div class="node lv2">对象：非目标敞口（如行业共同涨跌）</div></li>
+        <li>
+          <div class="node lv2 has-kids"><span class="caret"></span>衡量</div>
+          <ul>
+            <li><div class="node leaf">纵向：时序波动率（收益标准差）</div></li>
+            <li><div class="node leaf">横向：横截面行为相似度</div></li>
+          </ul>
+        </li>
+        <li>
+          <div class="node lv2 has-kids"><span class="caret"></span>限制规模</div>
+          <ul>
+            <li><div class="node leaf">硬性限制：设立界限</div></li>
+            <li><div class="node leaf">惩罚：可小幅超限</div></li>
+          </ul>
+        </li>
+        <li>
+          <div class="node lv2 has-kids"><span class="caret"></span>限制敞口</div>
+          <ul>
+            <li><div class="node leaf">单个头寸</div></li>
+            <li><div class="node leaf">一组头寸</div></li>
+          </ul>
+        </li>
+        <li>
+          <div class="node lv2 has-kids"><span class="caret"></span>风险建模</div>
+          <ul>
+            <li>
+              <div class="node lv3 has-kids"><span class="caret"></span>理论模型</div>
+              <ul>
+                <li><div class="node leaf">预定义系统性风险</div></li>
+              </ul>
+            </li>
+            <li>
+              <div class="node lv3 has-kids"><span class="caret"></span>经验模型（PCA）</div>
+              <ul>
+                <li><div class="node leaf">第一主成分 ≈ 利率水平</div></li>
+                <li><div class="node leaf">风险：虚假敞口</div></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+
+    <!-- ③ 交易费率模型 -->
+    <li class="b-fee">
+      <div class="node lv1 has-kids"><span class="caret"></span>③ 交易费率模型</div>
+      <ul>
+        <li><div class="node leaf">原则：无充分理由不交易</div></li>
+        <li><div class="node leaf">注意：单因子回测常未计费率</div></li>
+      </ul>
+    </li>
+
+    <!-- ④ 组合构建 -->
+    <li class="b-port">
+      <div class="node lv1">④ 组合构建<span class="tag">待补</span></div>
+    </li>
+
+    <!-- ⑤ 交易模块 -->
+    <li class="b-trade">
+      <div class="node lv1">⑤ 交易模块<span class="tag">待补</span></div>
+    </li>
+
+  </ul>
+</div>
+
+<div class="foot">由《量化流程.md》整理 · 只保留概念与性质节点 · 2026-10-18</div>
+
+<script>
+  document.querySelectorAll('.node.has-kids').forEach(function (node) {
+    node.addEventListener('click', function () {
+      var li = node.parentElement;
+      if (li.querySelector(':scope > ul')) li.classList.toggle('collapsed');
+    });
+  });
+
+  document.getElementById('expandAll').addEventListener('click', function () {
+    document.querySelectorAll('.tree li.collapsed').forEach(function (li) {
+      li.classList.remove('collapsed');
+    });
+  });
+
+  document.getElementById('collapseAll').addEventListener('click', function () {
+    document.querySelectorAll('.tree li').forEach(function (li) {
+      if (li.querySelector(':scope > ul')) li.classList.add('collapsed');
+    });
+  });
+</script>
+
+</body>
+</html>
